@@ -5,11 +5,15 @@
  */
 
 import { Colors, ColorScheme } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
+/**
+ * Noor is a dark-first, single-theme product for the MVP — the night-emerald
+ * palette is the brand. We pin the scheme to dark so the whole app (onboarding,
+ * which paints its own dark gradient, and the theme-driven screens) stays
+ * visually consistent regardless of the device's system appearance.
+ */
 export function useColorSchemeName(): ColorScheme {
-  const scheme = useColorScheme();
-  return scheme === 'light' ? 'light' : 'dark';
+  return 'dark';
 }
 
 export function useTheme() {

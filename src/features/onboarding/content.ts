@@ -56,6 +56,10 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
       { key: 'questions', label: 'Get answers to my questions' },
       { key: 'closer', label: 'Grow closer to Allah' },
       { key: 'dua', label: 'Learn du’as and reflections' },
+      { key: 'stories', label: 'Explore the stories of the prophets' },
+      { key: 'arabic', label: 'Learn to read Qur’anic Arabic' },
+      { key: 'guidance', label: 'Seek guidance for a decision' },
+      { key: 'dhikr', label: 'Remember Allah more often' },
     ],
   },
   {

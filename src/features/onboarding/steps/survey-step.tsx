@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
@@ -40,17 +39,17 @@ export function SurveyStep({ question, progress, onContinue }: Props) {
       </View>
 
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.options}
         showsVerticalScrollIndicator={false}
       >
-        {question.options.map((opt, i) => (
-          <Animated.View key={opt.key} entering={FadeInDown.delay(i * 45).springify()}>
-            <OptionPill
-              label={opt.label}
-              selected={selected.includes(opt.key)}
-              onPress={() => toggle(opt.key)}
-            />
-          </Animated.View>
+        {question.options.map((opt) => (
+          <OptionPill
+            key={opt.key}
+            label={opt.label}
+            selected={selected.includes(opt.key)}
+            onPress={() => toggle(opt.key)}
+          />
         ))}
       </ScrollView>
 
@@ -70,6 +69,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xl },
   question: { color: '#EDE9DF' },
   helper: { color: '#E3C46B', letterSpacing: 0.5 },
+  scroll: { flex: 1 },
   options: { paddingHorizontal: Spacing.xl, gap: Spacing.md, paddingBottom: Spacing.xl },
   footer: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xl },
 });

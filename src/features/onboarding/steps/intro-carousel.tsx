@@ -18,7 +18,7 @@ import { INTRO_SLIDES } from '@/features/onboarding/content';
 
 const { width } = Dimensions.get('window');
 
-export function IntroCarousel({ onDone }: { onDone: () => void }) {
+export function IntroCarousel({ onDone, onSkip }: { onDone: () => void; onSkip: () => void }) {
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const last = INTRO_SLIDES.length - 1;
@@ -42,7 +42,7 @@ export function IntroCarousel({ onDone }: { onDone: () => void }) {
         <ThemedText type="subtitle" themeColor="primary">
           Noor
         </ThemedText>
-        <ThemedText type="label" style={styles.skip} onPress={onDone}>
+        <ThemedText type="label" style={styles.skip} onPress={onSkip}>
           Skip
         </ThemedText>
       </View>

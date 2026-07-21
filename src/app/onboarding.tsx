@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GradientBackground } from '@/features/onboarding/components/gradient-background';
@@ -24,12 +23,12 @@ export default function Onboarding() {
     next();
   };
 
-  const finish = () => router.replace('/home');
+  const finish = () => router.replace('/chat');
 
   // Ordered flow. Each entry renders one full-screen beat.
   const steps = useMemo(
     () => [
-      () => <IntroCarousel onDone={next} />,
+      () => <IntroCarousel onDone={next} onSkip={finish} />,
       () => (
         <SurveyStep
           question={SURVEY_QUESTIONS[0]}
@@ -70,9 +69,11 @@ export default function Onboarding() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <Animated.View key={step} entering={FadeIn.duration(350)} exiting={FadeOut.duration(150)} style={styles.flex}>
+        {/* key remounts on step change so each step re-plays its own entrance
+            animations; no layout-animation wrapper (that breaks nested scroll). */}
+        <View key={step} style={styles.flex}>
           <Current />
-        </Animated.View>
+        </View>
       </SafeAreaView>
     </GradientBackground>
   );

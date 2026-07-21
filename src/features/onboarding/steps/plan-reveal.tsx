@@ -1,6 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
 
 import { Button } from '@/components/button';
@@ -52,7 +51,8 @@ export function PlanReveal({ onContinue }: { onContinue: () => void }) {
         </View>
       </View>
 
-      <Animated.ScrollView
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
@@ -85,21 +85,21 @@ export function PlanReveal({ onContinue }: { onContinue: () => void }) {
 
           {/* milestone cards, each vertically centered in its row slot */}
           <View style={styles.cards}>
-            {PLAN_DAYS.map((d, i) => (
+            {PLAN_DAYS.map((d) => (
               <View key={d.day} style={styles.rowSlot}>
-                <Animated.View entering={FadeInDown.delay(i * 70).springify()} style={styles.card}>
+                <View style={styles.card}>
                   <ThemedText type="subtitle" style={styles.cardTitle}>
                     {d.title}
                   </ThemedText>
                   <ThemedText type="small" style={styles.cardDetail}>
                     {d.detail}
                   </ThemedText>
-                </Animated.View>
+                </View>
               </View>
             ))}
           </View>
         </View>
-      </Animated.ScrollView>
+      </ScrollView>
 
       <View style={styles.footer}>
         <Button title="Begin my journey" onPress={onContinue} />
@@ -123,6 +123,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(227,196,107,0.25)',
   },
   chipText: { color: Palette.gold },
+  scrollView: { flex: 1 },
   scroll: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xl },
   trail: { flexDirection: 'row' },
   rail: { position: 'absolute', left: 0, top: 0 },
