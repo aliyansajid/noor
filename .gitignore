@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# reference screenshots (Bible Chat teardown — not product code)
+screenshots/
