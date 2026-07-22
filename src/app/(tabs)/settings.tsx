@@ -58,6 +58,18 @@ export default function Settings() {
           value={settings.reciterName}
           onPress={() => router.push({ pathname: "/edition-picker", params: { field: "reciter" } })}
         />
+        <Divider />
+        <NavRow
+          label="Tafsir"
+          value={settings.tafsirName}
+          onPress={() => router.push({ pathname: "/edition-picker", params: { field: "tafsir" } })}
+        />
+        <Divider />
+        <NavRow
+          label="Arabic script"
+          value={settings.arabicEditionName}
+          onPress={() => router.push({ pathname: "/edition-picker", params: { field: "arabic" } })}
+        />
       </Card>
 
       <SectionTitle>PRAYER</SectionTitle>

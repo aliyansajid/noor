@@ -9,33 +9,58 @@ import { ScreenGlow } from "@/components/screen-glow";
 import { Skeleton } from "@/components/skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Layout, Spacing } from "@/constants/theme";
-import { Edition, fetchReciters, fetchTranslations, languageName } from "@/features/quran/editions";
+import {
+  Edition,
+  fetchArabicScripts,
+  fetchReciters,
+  fetchTafsirs,
+  fetchTranslations,
+  languageName,
+} from "@/features/quran/editions";
+import { Settings } from "@/features/settings/settings";
 import { useSettings } from "@/features/settings/settings-context";
 import { useTheme } from "@/hooks/use-theme";
 
-/** Full-screen list to choose a translation or reciter from the API catalog. */
+type FieldConfig = {
+  title: string;
+  fetch: (signal?: AbortSignal) => Promise<Edition[]>;
+  idKey: keyof Settings;
+  nameKey: keyof Settings;
+  grouped: boolean; // group by language (translations only)
+};
+
+const FIELDS: Record<string, FieldConfig> = {
+  translation: { title: "Translation", fetch: fetchTranslations, idKey: "translation", nameKey: "translationName", grouped: true },
+  reciter: { title: "Reciter", fetch: fetchReciters, idKey: "reciter", nameKey: "reciterName", grouped: false },
+  tafsir: { title: "Tafsir", fetch: fetchTafsirs, idKey: "tafsir", nameKey: "tafsirName", grouped: false },
+  arabic: { title: "Arabic script", fetch: fetchArabicScripts, idKey: "arabicEdition", nameKey: "arabicEditionName", grouped: false },
+};
+
+/** Full-screen list to choose an edition (translation / reciter / tafsir /
+ * Arabic script) from the Al-Quran Cloud catalog. */
 export default function EditionPicker() {
   const theme = useTheme();
   const router = useRouter();
   const { field } = useLocalSearchParams<{ field: string }>();
-  const isTranslation = field === "translation";
+  const cfg = FIELDS[field ?? "translation"] ?? FIELDS.translation;
   const { settings, update } = useSettings();
-  const currentId = isTranslation ? settings.translation : settings.reciter;
+  const currentId = settings[cfg.idKey];
 
   const [editions, setEditions] = useState<Edition[] | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    (isTranslation ? fetchTranslations : fetchReciters)(controller.signal).then((list) => {
+    setEditions(null);
+    cfg.fetch(controller.signal).then((list) => {
       if (!controller.signal.aborted) setEditions(list);
     });
     return () => controller.abort();
-  }, [isTranslation]);
+  }, [cfg]);
 
-  // Translations: grouped by language, English first. Reciters: one flat group.
+  // Translations: grouped by language, English first. Others: one flat group.
   const groups = useMemo(() => {
     if (!editions) return [];
-    if (!isTranslation) {
+    if (!cfg.grouped) {
       const items = [...editions].sort((a, b) =>
         (a.englishName || a.name).localeCompare(b.englishName || b.name),
       );
@@ -53,13 +78,12 @@ export default function EditionPicker() {
           (x.englishName || x.name).localeCompare(y.englishName || y.name),
         ),
       }));
-  }, [editions, isTranslation]);
+  }, [editions, cfg]);
 
   const select = (e: Edition) => {
     Haptics.selectionAsync();
     const name = e.englishName || e.name;
-    if (isTranslation) update({ translation: e.identifier, translationName: name });
-    else update({ reciter: e.identifier, reciterName: name });
+    update({ [cfg.idKey]: e.identifier, [cfg.nameKey]: name } as Partial<Settings>);
     router.back();
   };
 
@@ -77,7 +101,7 @@ export default function EditionPicker() {
           </Svg>
         </Pressable>
         <ThemedText type="subtitle" themeColor="text">
-          {isTranslation ? "Translation" : "Reciter"}
+          {cfg.title}
         </ThemedText>
         <View style={styles.back} />
       </View>
@@ -121,7 +145,12 @@ export default function EditionPicker() {
                         {e.englishName || e.name}
                       </ThemedText>
                       {e.name && e.name !== (e.englishName || "") ? (
-                        <ThemedText type="small" themeColor="textMuted" numberOfLines={1}>
+                        <ThemedText
+                          type="small"
+                          themeColor="textMuted"
+                          numberOfLines={1}
+                          style={styles.subName}
+                        >
                           {e.name}
                         </ThemedText>
                       ) : null}
@@ -164,4 +193,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   rowText: { flexShrink: 1, gap: 2 },
+  // Arabic names carry diacritics and tall combined glyphs (ك, lam-alef) that
+  // exceed the Latin line box; give the line generous room so tops aren't clipped.
+  subName: { lineHeight: 28 },
 });

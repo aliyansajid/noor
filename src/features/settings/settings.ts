@@ -19,6 +19,10 @@ export type Settings = {
   translationName: string; // human label for the UI
   reciter: string; // audio edition id, e.g. "ar.alafasy"
   reciterName: string;
+  tafsir: string; // tafsir (commentary) edition id, e.g. "ar.jalalayn"
+  tafsirName: string;
+  arabicEdition: string; // Arabic script edition id, e.g. "quran-uthmani"
+  arabicEditionName: string;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -29,6 +33,10 @@ export const DEFAULT_SETTINGS: Settings = {
   translationName: 'Saheeh International',
   reciter: 'ar.alafasy',
   reciterName: 'Mishary Rashid Alafasy',
+  tafsir: 'ar.jalalayn',
+  tafsirName: 'Tafsir al-Jalalayn',
+  arabicEdition: 'quran-uthmani',
+  arabicEditionName: 'Uthmani',
 };
 
 const STORAGE_KEY = 'noor.settings.v1';

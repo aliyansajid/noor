@@ -11,10 +11,11 @@ import { getSettings } from '@/features/settings/settings';
 const AYAH_URL = 'https://api.alquran.cloud/v1/ayah';
 
 /** Editions to request, in the fixed order fetchAyah parses: arabic, translation,
- * transliteration, audio. Translation and reciter follow the user's settings. */
+ * transliteration, audio. Arabic script, translation, and reciter follow the
+ * user's settings. */
 function editionsParam() {
-  const { translation, reciter } = getSettings();
-  return `quran-uthmani,${translation},en.transliteration,${reciter}`;
+  const { arabicEdition, translation, reciter } = getSettings();
+  return `${arabicEdition},${translation},en.transliteration,${reciter}`;
 }
 
 /** Fetch one verse in all display editions. Returns null on any failure. */
