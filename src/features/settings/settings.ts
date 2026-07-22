@@ -9,10 +9,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type ThemePref = 'system' | 'light' | 'dark';
 export type TimeFormat = '12h' | '24h';
+export type CalendarSystem = 'gregorian' | 'hijri';
 
 export type Settings = {
   theme: ThemePref;
   timeFormat: TimeFormat;
+  calendar: CalendarSystem; // prayer calendar shown by Gregorian or Hijri month
   translation: string; // Al-Quran Cloud translation edition id, e.g. "en.sahih"
   translationName: string; // human label for the UI
   reciter: string; // audio edition id, e.g. "ar.alafasy"
@@ -23,6 +25,7 @@ export type Settings = {
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
   timeFormat: '24h',
+  calendar: 'gregorian',
   translation: 'en.sahih',
   translationName: 'Saheeh International',
   reciter: 'ar.alafasy',

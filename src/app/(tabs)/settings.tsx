@@ -10,7 +10,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Radius, Spacing } from "@/constants/theme";
 import { PRAYER_METHODS } from "@/features/quran/editions";
 import { useSettings } from "@/features/settings/settings-context";
-import { ThemePref, TimeFormat } from "@/features/settings/settings";
+import { CalendarSystem, ThemePref, TimeFormat } from "@/features/settings/settings";
 import { useTheme } from "@/hooks/use-theme";
 
 export default function Settings() {
@@ -62,6 +62,17 @@ export default function Settings() {
         </Card>
 
         <SectionTitle>PRAYER</SectionTitle>
+        <Card elevated>
+          <FieldLabel>Calendar</FieldLabel>
+          <Segmented<CalendarSystem>
+            value={settings.calendar}
+            onChange={(v) => update({ calendar: v })}
+            options={[
+              { label: "Gregorian", value: "gregorian" },
+              { label: "Hijri", value: "hijri" },
+            ]}
+          />
+        </Card>
         <Card elevated>
           <FieldLabel>Calculation method</FieldLabel>
           {PRAYER_METHODS.map((m, i) => {

@@ -14,14 +14,21 @@ const PRAYER_ORDER = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'] as const;
 /** A location is either device coordinates or a named city. */
 export type Loc = { latitude: number; longitude: number } | { city: string; country?: string };
 
+export type CalendarSystem = 'gregorian' | 'hijri';
+
 export type Prayer = { name: string; time: string }; // time as "HH:MM"
 export type PrayerData = {
   hijri: string; // e.g. "8 Ṣafar 1448"
+  hijriDay: number; // 8
+  hijriMonth: number; // 1..12 (Hijri month number)
+  hijriMonthName: string; // "Ṣafar"
+  hijriYear: number; // 1448
   sunrise: string; // "HH:MM"
+  sunset: string; // "HH:MM"
   prayers: Prayer[]; // the five obligatory, in order
 };
 export type CalendarDay = {
-  day: string; // "01".."31"
+  day: string; // day-of-month in the active calendar system
   weekday: string; // "Wednesday"
   prayers: Prayer[]; // the five, in order
 };
@@ -71,7 +78,12 @@ export async function fetchTimings(
   const h = data.date?.hijri;
   return {
     hijri: h ? `${h.day} ${h.month?.en} ${h.year}` : '',
+    hijriDay: Number(h?.day) || 0,
+    hijriMonth: Number(h?.month?.number) || 0,
+    hijriMonthName: h?.month?.en ?? '',
+    hijriYear: Number(h?.year) || 0,
     sunrise: cleanTime(data.timings.Sunrise),
+    sunset: cleanTime(data.timings.Sunset),
     prayers: toPrayers(data.timings),
   };
 }
@@ -86,20 +98,24 @@ export function fetchPrayerTimes(
   return fetchTimings({ latitude, longitude }, date, signal);
 }
 
-/** A whole month's prayer calendar for a location. */
+/** A whole month's prayer calendar for a location, in the given calendar system.
+ * For 'hijri', pass the Hijri year/month; for 'gregorian', the Gregorian ones. */
 export async function fetchCalendar(
   loc: Loc,
   year: number,
   month: number,
+  system: CalendarSystem,
   signal?: AbortSignal,
 ): Promise<CalendarDay[] | null> {
-  const path = 'city' in loc ? 'calendarByCity' : 'calendar';
+  const base = system === 'hijri' ? 'hijriCalendar' : 'calendar';
+  const path = 'city' in loc ? `${base}ByCity` : base;
   const json = await getJson(`${BASE}/${path}/${year}/${month}?${locQuery(loc)}&method=${getSettings().prayerMethod}`, signal);
   const days = json?.data;
   if (!Array.isArray(days)) return null;
 
   return days.map((d: any) => ({
-    day: d.date?.gregorian?.day ?? '',
+    // Day number comes from the active system; weekday is calendar-agnostic.
+    day: (system === 'hijri' ? d.date?.hijri?.day : d.date?.gregorian?.day) ?? '',
     weekday: d.date?.gregorian?.weekday?.en ?? '',
     prayers: toPrayers(d.timings),
   }));
@@ -125,6 +141,18 @@ export function nextPrayer(prayers: Prayer[], now: Date): NextPrayer | null {
     time: fajr.time,
     minutesUntil: 24 * 60 - nowMin + toMinutes(fajr.time),
   };
+}
+
+/** The prayer whose time is currently active — the most recent one that has
+ * passed. Before Fajr it's the previous night's Isha (which runs until Fajr). */
+export function currentPrayer(prayers: Prayer[], now: Date): string | null {
+  if (!prayers.length) return null;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  let current = prayers[prayers.length - 1].name; // Isha carries overnight
+  for (const p of prayers) {
+    if (toMinutes(p.time) <= nowMin) current = p.name;
+  }
+  return current;
 }
 
 /** 134 -> "2h 14m", 40 -> "40m" */

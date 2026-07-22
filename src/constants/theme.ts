@@ -53,6 +53,7 @@ export const Colors = {
     primary: Palette.emeraldDeep,
     primarySoft: '#E3EFE9',
     accent: Palette.goldMuted,
+    accentSoft: '#F3EAD0',
 
     border: '#E6E0D4',
     borderStrong: '#D6CFC0',
@@ -74,6 +75,7 @@ export const Colors = {
     primary: Palette.emerald,
     primarySoft: '#173028',
     accent: Palette.gold,
+    accentSoft: '#2E2914',
 
     border: '#26332B',
     borderStrong: '#31423A',

@@ -10,6 +10,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Layout, Radius, Spacing } from "@/constants/theme";
 import {
   CalendarDay,
+  currentPrayer,
   fetchCalendar,
   fetchTimings,
   formatCountdown,
@@ -19,6 +20,7 @@ import {
 } from "@/features/prayer/times";
 import { formatTime } from "@/features/settings/settings";
 import { useSettings } from "@/features/settings/settings-context";
+import { SunArc } from "@/features/prayer/sun-arc";
 import { useTheme } from "@/hooks/use-theme";
 
 const DISPLAY_ORDER = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
@@ -87,12 +89,18 @@ export default function Prayer() {
     (async () => {
       const d = new Date();
       const t = await fetchTimings(loc, d, controller.signal);
-      if (!controller.signal.aborted) setToday(t);
-      const c = await fetchCalendar(loc, d.getFullYear(), d.getMonth() + 1, controller.signal);
+      if (controller.signal.aborted) return;
+      setToday(t);
+
+      // Hijri view needs today's Hijri year/month; Gregorian uses the device date.
+      const c =
+        settings.calendar === "hijri" && t
+          ? await fetchCalendar(loc, t.hijriYear, t.hijriMonth, "hijri", controller.signal)
+          : await fetchCalendar(loc, d.getFullYear(), d.getMonth() + 1, "gregorian", controller.signal);
       if (!controller.signal.aborted) setCalendar(c);
     })();
     return () => controller.abort();
-  }, [loc, settings.prayerMethod]);
+  }, [loc, settings.prayerMethod, settings.calendar]);
 
   const submitCity = () => {
     const parts = query.split(",").map((s) => s.trim()).filter(Boolean);
@@ -104,22 +112,26 @@ export default function Prayer() {
   };
 
   const next = today ? nextPrayer(today.prayers, now) : null;
+  const current = today ? currentPrayer(today.prayers, now) : null;
   const rows = today
     ? DISPLAY_ORDER.map((name) => ({
         name,
         time: name === "Sunrise" ? today.sunrise : today.prayers.find((p) => p.name === name)!.time,
       }))
     : [];
-  const todayNum = String(now.getDate());
-  const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+  const isHijri = settings.calendar === "hijri" && !!today;
+  const todayNum = isHijri ? String(today!.hijriDay) : String(now.getDate());
+  const monthLabel = isHijri
+    ? `${today!.hijriMonthName} ${today!.hijriYear}`
+    : `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+
+  // Both dates in the header: Gregorian · Islamic.
+  const gregorianDate = `${MONTH_NAMES[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+  const dateSubtitle = today?.hijri ? `${gregorianDate}  ·  ${today.hijri} AH` : gregorianDate;
 
   return (
     <Screen scroll edges={["top", "left", "right"]} contentContainerStyle={styles.content}>
-      <ScreenHeader
-        eyebrow="PRAYER TIMES"
-        title={label || "Prayer"}
-        subtitle={today?.hijri ? `${today.hijri} AH` : undefined}
-      />
+      <ScreenHeader eyebrow="PRAYER TIMES" title={label || "Prayer"} subtitle={dateSubtitle} />
 
       {/* City override */}
       <View style={[styles.search, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -153,6 +165,11 @@ export default function Prayer() {
         </View>
       ) : (
         <>
+          {/* Sun's journey for the day */}
+          <Card elevated>
+            <SunArc sunrise={today.sunrise} sunset={today.sunset} now={now} />
+          </Card>
+
           {/* Next prayer hero */}
           {next ? (
             <Card elevated>
@@ -175,10 +192,10 @@ export default function Prayer() {
             </Card>
           ) : null}
 
-          {/* Today's full list */}
+          {/* Today's full list — the current prayer is marked "Now" */}
           <Card elevated list>
             {rows.map((r, i) => {
-              const isNext = next?.name === r.name;
+              const isCurrent = current === r.name;
               return (
                 <View
                   key={r.name}
@@ -187,15 +204,24 @@ export default function Prayer() {
                     i < rows.length - 1 && { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth },
                   ]}
                 >
+                  <View style={styles.timeName}>
+                    <ThemedText
+                      type="bodyMedium"
+                      style={{ color: isCurrent ? theme.primary : theme.text }}
+                    >
+                      {r.name}
+                    </ThemedText>
+                    {isCurrent ? (
+                      <View style={[styles.nowTag, { backgroundColor: theme.accentSoft }]}>
+                        <ThemedText type="caption" themeColor="accent">
+                          Now
+                        </ThemedText>
+                      </View>
+                    ) : null}
+                  </View>
                   <ThemedText
                     type="bodyMedium"
-                    style={{ color: isNext ? theme.primary : theme.text }}
-                  >
-                    {r.name}
-                  </ThemedText>
-                  <ThemedText
-                    type="bodyMedium"
-                    style={{ color: isNext ? theme.primary : theme.textSecondary }}
+                    style={{ color: isCurrent ? theme.primary : theme.textSecondary }}
                   >
                     {formatTime(r.time, settings.timeFormat)}
                   </ThemedText>
@@ -310,8 +336,15 @@ const styles = StyleSheet.create({
   heroRight: { alignItems: "flex-end" },
   timeRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: Spacing.lg,
+  },
+  timeName: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
+  nowTag: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
   },
   calToggle: {
     alignSelf: "flex-start",
