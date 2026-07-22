@@ -1,9 +1,9 @@
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
-import { AyahCard } from "@/components/ayah-card";
+import { AyahCard, AyahCardSkeleton } from "@/components/ayah-card";
 import { MosqueArt } from "@/components/mosque-art";
 import { Screen } from "@/components/screen";
 import { ThemedText } from "@/components/themed-text";
@@ -21,7 +21,6 @@ import {
 import { fetchDailyAyah } from "@/features/quran/verses";
 import { formatTime } from "@/features/settings/settings";
 import { useSettings } from "@/features/settings/settings-context";
-import { useTheme } from "@/hooks/use-theme";
 
 const STRIP = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 const MONTH_NAMES = [
@@ -38,7 +37,6 @@ const GOLD = "#E3C46B";
 
 /** Home — the landing hub: prayer hero, a way into asking, and today's verse. */
 export default function Home() {
-  const theme = useTheme();
   const { settings } = useSettings();
 
   const [now, setNow] = useState(() => new Date());
@@ -175,9 +173,7 @@ export default function Home() {
           audio={ayah.audio}
         />
       ) : (
-        <View style={styles.verseLoading}>
-          <ActivityIndicator color={theme.primary} />
-        </View>
+        <AyahCardSkeleton />
       )}
     </Screen>
   );
@@ -208,5 +204,4 @@ const styles = StyleSheet.create({
   },
 
   verseHead: { marginTop: Spacing.xs },
-  verseLoading: { paddingVertical: Spacing.xxl, alignItems: "center" },
 });

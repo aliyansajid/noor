@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 
 import { Card } from '@/components/card';
+import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
 import { FontFamily, Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -48,6 +49,30 @@ export function AyahCard({ arabic, translation, reference, transliteration, audi
       <ThemedText type="body" themeColor="textSecondary">
         {translation}
       </ThemedText>
+    </Card>
+  );
+}
+
+/** Loading placeholder that mirrors an AyahCard's shape (badge, ayah lines,
+ * divider, translation) — shown while the verse is being fetched. */
+export function AyahCardSkeleton() {
+  const theme = useTheme();
+  return (
+    <Card elevated>
+      <View style={styles.topRow}>
+        <Skeleton width={96} height={24} radius={Radius.pill} />
+      </View>
+      <View style={styles.skelArabic}>
+        <Skeleton width="70%" height={22} />
+        <Skeleton width="90%" height={22} />
+        <Skeleton width="55%" height={22} />
+      </View>
+      <View style={[styles.divider, { backgroundColor: theme.border }]} />
+      <View style={styles.skelLines}>
+        <Skeleton width="100%" height={14} />
+        <Skeleton width="92%" height={14} />
+        <Skeleton width="64%" height={14} />
+      </View>
     </Card>
   );
 }
@@ -153,4 +178,6 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginVertical: Spacing.lg,
   },
+  skelArabic: { gap: Spacing.md, alignItems: 'flex-end' },
+  skelLines: { gap: Spacing.sm },
 });

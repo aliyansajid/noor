@@ -1,11 +1,12 @@
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
 import { Card } from "@/components/card";
 import { Screen } from "@/components/screen";
 import { ScreenHeader } from "@/components/screen-header";
+import { Skeleton } from "@/components/skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Layout, Radius, Spacing } from "@/constants/theme";
 import {
@@ -160,9 +161,7 @@ export default function Prayer() {
           Location is off. Search a city above to see its prayer times.
         </ThemedText>
       ) : !today ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={theme.primary} />
-        </View>
+        <PrayerSkeleton />
       ) : (
         <>
           {/* Sun's journey for the day */}
@@ -250,9 +249,7 @@ export default function Prayer() {
             calendar ? (
               <CalendarTable calendar={calendar} todayNum={todayNum} />
             ) : (
-              <View style={styles.loading}>
-                <ActivityIndicator color={theme.primary} />
-              </View>
+              <CalendarSkeleton />
             )
           ) : null}
         </>
@@ -262,6 +259,63 @@ export default function Prayer() {
 }
 
 const COLS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+
+/** Loading state for the day view: sun-arc, next-prayer hero, and the times list. */
+function PrayerSkeleton() {
+  const theme = useTheme();
+  return (
+    <>
+      <Card elevated>
+        <Skeleton width="100%" height={128} radius={Radius.md} />
+      </Card>
+      <Card elevated>
+        <Skeleton width={96} height={12} />
+        <View style={styles.heroRow}>
+          <Skeleton width={150} height={40} />
+          <View style={styles.heroRight}>
+            <Skeleton width={84} height={22} />
+            <View style={{ height: Spacing.sm }} />
+            <Skeleton width={56} height={12} />
+          </View>
+        </View>
+      </Card>
+      <Card elevated list>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <View
+            key={i}
+            style={[
+              styles.timeRow,
+              i < 5 && { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth },
+            ]}
+          >
+            <Skeleton width={92} height={16} />
+            <Skeleton width={64} height={16} />
+          </View>
+        ))}
+      </Card>
+    </>
+  );
+}
+
+/** Loading state for the monthly calendar table. */
+function CalendarSkeleton() {
+  const theme = useTheme();
+  return (
+    <View>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.calRow,
+            { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth },
+          ]}
+        >
+          <Skeleton width="90%" height={12} />
+        </View>
+      ))}
+    </View>
+  );
+}
 
 function CalendarTable({ calendar, todayNum }: { calendar: CalendarDay[]; todayNum: string }) {
   const theme = useTheme();
@@ -326,7 +380,6 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, fontSize: 16, paddingVertical: Spacing.xs },
   note: { paddingVertical: Spacing.lg },
-  loading: { paddingVertical: Spacing.xxl, alignItems: "center" },
   heroRow: {
     flexDirection: "row",
     alignItems: "flex-end",

@@ -1,11 +1,12 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
 import { ScreenGlow } from "@/components/screen-glow";
+import { Skeleton } from "@/components/skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Layout, Spacing } from "@/constants/theme";
 import { Edition, fetchReciters, fetchTranslations, languageName } from "@/features/quran/editions";
@@ -82,8 +83,15 @@ export default function EditionPicker() {
       </View>
 
       {!editions ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={theme.primary} />
+        <View style={styles.content}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <View key={i} style={[styles.row, { borderBottomColor: theme.border }]}>
+              <View style={[styles.rowText, { gap: 6 }]}>
+                <Skeleton width={180} height={16} />
+                <Skeleton width={110} height={12} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -145,7 +153,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   back: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   content: { paddingHorizontal: Layout.screenPadding, paddingBottom: Spacing.xxxl },
   groupTitle: { letterSpacing: 1.5, marginTop: Spacing.xl, marginBottom: Spacing.xs },
   row: {
