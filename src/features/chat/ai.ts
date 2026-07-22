@@ -84,7 +84,7 @@ async function askGemini(question: string, signal: AbortSignal): Promise<AiResul
 async function fetchAyah(surah: number, ayah: number, signal: AbortSignal): Promise<Ayah | null> {
   try {
     const res = await fetch(
-      `${QURAN_URL}/${surah}:${ayah}/editions/quran-uthmani,en.sahih,en.transliteration`,
+      `${QURAN_URL}/${surah}:${ayah}/editions/quran-uthmani,en.sahih,en.transliteration,ar.alafasy`,
       { signal },
     );
     if (!res.ok) return null;
@@ -92,11 +92,12 @@ async function fetchAyah(surah: number, ayah: number, signal: AbortSignal): Prom
     const editions = json?.data;
     if (!Array.isArray(editions) || editions.length < 2) return null;
 
-    const [arabicEd, translationEd, translitEd] = editions;
+    const [arabicEd, translationEd, translitEd, audioEd] = editions;
     return {
       arabic: arabicEd.text,
       translation: translationEd.text,
       transliteration: translitEd?.text,
+      audio: audioEd?.audio, // Alafasy recitation MP3, if present
       reference: `${arabicEd.surah.englishName} ${arabicEd.surah.number}:${arabicEd.numberInSurah}`,
     };
   } catch {

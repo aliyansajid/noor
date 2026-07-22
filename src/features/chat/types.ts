@@ -1,11 +1,12 @@
-/** Shared chat types. The mock responder and the future Vercel/Gemini
- * backend both produce this shape, so the UI never changes when we swap them. */
+/** Shared chat types. Gemini + Al-Quran Cloud produce this shape, so the UI
+ * stays stable regardless of how the answer was sourced. */
 
 export type Ayah = {
   arabic: string;
   transliteration?: string;
   translation: string;
   reference: string; // e.g. "Al-Baqarah 2:286"
+  audio?: string; // recitation MP3 (Al-Quran Cloud, ar.alafasy)
 };
 
 export type ChatRole = 'user' | 'assistant';

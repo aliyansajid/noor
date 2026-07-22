@@ -41,6 +41,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
             translation={ayah.translation}
             reference={ayah.reference}
             transliteration={ayah.transliteration}
+            audio={ayah.audio}
           />
         </Animated.View>
       ))}
