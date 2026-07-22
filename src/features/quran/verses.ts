@@ -18,6 +18,20 @@ function editionsParam() {
   return `${arabicEdition},${translation},en.transliteration,${reciter}`;
 }
 
+/** Parse the multi-edition ayah payload (arabic, translation, transliteration,
+ * audio — in the order editionsParam requests them) into a display Ayah. */
+function parseEditions(editions: unknown): Ayah | null {
+  if (!Array.isArray(editions) || editions.length < 2) return null;
+  const [arabicEd, translationEd, translitEd, audioEd] = editions;
+  return {
+    arabic: arabicEd.text,
+    translation: translationEd.text,
+    transliteration: translitEd?.text,
+    audio: audioEd?.audio,
+    reference: `${arabicEd.surah.englishName} ${arabicEd.surah.number}:${arabicEd.numberInSurah}`,
+  };
+}
+
 /** Fetch one verse in all display editions. Returns null on any failure. */
 export async function fetchAyah(
   surah: number,
@@ -28,17 +42,19 @@ export async function fetchAyah(
     const res = await fetch(`${AYAH_URL}/${surah}:${ayah}/editions/${editionsParam()}`, { signal });
     if (!res.ok) return null;
     const json = await res.json();
-    const editions = json?.data;
-    if (!Array.isArray(editions) || editions.length < 2) return null;
+    return parseEditions(json?.data);
+  } catch {
+    return null;
+  }
+}
 
-    const [arabicEd, translationEd, translitEd, audioEd] = editions;
-    return {
-      arabic: arabicEd.text,
-      translation: translationEd.text,
-      transliteration: translitEd?.text,
-      audio: audioEd?.audio,
-      reference: `${arabicEd.surah.englishName} ${arabicEd.surah.number}:${arabicEd.numberInSurah}`,
-    };
+/** A random verse in the user's display editions. Returns null on any failure. */
+export async function fetchRandomAyah(signal?: AbortSignal): Promise<Ayah | null> {
+  try {
+    const res = await fetch(`${AYAH_URL}/random/editions/${editionsParam()}`, { signal });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return parseEditions(json?.data);
   } catch {
     return null;
   }
