@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
+import { AuthProvider, useAuth } from '@/features/auth/auth-context';
 import { SettingsProvider, useSettings } from '@/features/settings/settings-context';
 import { useAppFonts } from '@/hooks/use-app-fonts';
 import { useColorSchemeName } from '@/hooks/use-theme';
@@ -17,9 +18,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <SettingsProvider>
-          <ThemedApp />
-        </SettingsProvider>
+        <AuthProvider>
+          <SettingsProvider>
+            <ThemedApp />
+          </SettingsProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -30,7 +33,8 @@ function ThemedApp() {
   const scheme = useColorSchemeName();
   const { loaded, error } = useAppFonts();
   const { loaded: stateLoaded } = useSettings();
-  const ready = (loaded || error) && stateLoaded;
+  const { loading: authLoading } = useAuth();
+  const ready = (loaded || error) && stateLoaded && !authLoading;
 
   useEffect(() => {
     if (ready) {
@@ -72,8 +76,10 @@ function ThemedApp() {
           animation: 'fade',
         }}
       >
-        {/* Drill-down pickers use the normal platform push, not the app-wide fade. */}
+        {/* These push over content, so use the normal platform slide, not the
+            app-wide fade. */}
         <Stack.Screen name="edition-picker" options={{ animation: 'default' }} />
+        <Stack.Screen name="auth" options={{ animation: 'default' }} />
       </Stack>
     </ThemeProvider>
   );

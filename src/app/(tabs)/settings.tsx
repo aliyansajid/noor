@@ -8,6 +8,7 @@ import { Screen } from "@/components/screen";
 import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
 import { Radius, Spacing } from "@/constants/theme";
+import { useAuth } from "@/features/auth/auth-context";
 import { useSettings } from "@/features/settings/settings-context";
 import { CalendarSystem, ThemePref, TimeFormat } from "@/features/settings/settings";
 import { useTheme } from "@/hooks/use-theme";
@@ -16,10 +17,61 @@ export default function Settings() {
   const theme = useTheme();
   const router = useRouter();
   const { settings, update } = useSettings();
+  const { configured, session, signOut } = useAuth();
+
+  const onSignOut = async () => {
+    Haptics.selectionAsync();
+    await signOut();
+    // Stay here — the ACCOUNT section flips to "Sign in with Google".
+  };
 
   return (
     <Screen scroll edges={["top", "left", "right"]} contentContainerStyle={styles.content}>
       <ScreenHeader title="Settings" />
+
+      {configured ? (
+        <>
+          <SectionTitle>ACCOUNT</SectionTitle>
+          <Card elevated list>
+            {session ? (
+              <>
+                <View style={styles.accountRow}>
+                  <ThemedText type="caption" themeColor="textMuted">
+                    Signed in as
+                  </ThemedText>
+                  <ThemedText type="bodyMedium" themeColor="text" numberOfLines={1}>
+                    {session.user.email ?? "Google account"}
+                  </ThemedText>
+                </View>
+                <Divider />
+                <Pressable
+                  onPress={onSignOut}
+                  style={({ pressed }) => [styles.navRow, { opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <ThemedText type="bodyMedium" style={{ color: theme.danger }}>
+                    Sign out
+                  </ThemedText>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  router.push("/auth");
+                }}
+                style={({ pressed }) => [styles.signInRow, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                <ThemedText type="bodyMedium" themeColor="primary">
+                  Sign in with Google
+                </ThemedText>
+                <ThemedText type="caption" themeColor="textMuted">
+                  Sync your settings across devices
+                </ThemedText>
+              </Pressable>
+            )}
+          </Card>
+        </>
+      ) : null}
 
       <SectionTitle>APPEARANCE</SectionTitle>
       <Card elevated>
@@ -195,4 +247,6 @@ const styles = StyleSheet.create({
   },
   navRight: { flexDirection: "row", alignItems: "center", gap: Spacing.xs, flexShrink: 1, marginLeft: Spacing.lg },
   navValue: { flexShrink: 1 },
+  accountRow: { paddingVertical: Spacing.md, gap: 2 },
+  signInRow: { paddingVertical: Spacing.lg, gap: 2 },
 });
