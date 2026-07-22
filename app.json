@@ -8,9 +8,11 @@
     "scheme": "noor",
     "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.noor.app"
     },
     "android": {
+      "package": "com.noor.app",
       "adaptiveIcon": {
         "backgroundColor": "#0E1512",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
