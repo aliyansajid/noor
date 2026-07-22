@@ -1,5 +1,6 @@
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { AudioPlayer, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
+import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 
@@ -51,6 +52,9 @@ export function AyahCard({ arabic, translation, reference, transliteration, audi
   );
 }
 
+// Only one recitation should play at a time across all cards on screen.
+let activePlayer: AudioPlayer | null = null;
+
 /** Circular play/pause button that streams a recitation MP3. */
 function ReciteButton({ uri }: { uri: string }) {
   const theme = useTheme();
@@ -58,12 +62,30 @@ function ReciteButton({ uri }: { uri: string }) {
   const status = useAudioPlayerStatus(player);
   const loading = status.isBuffering && !status.playing;
 
+  // If another card starts playing, this one is paused; releasing this card
+  // (unmount) clears it as the active player.
+  useEffect(() => {
+    return () => {
+      if (activePlayer === player) activePlayer = null;
+    };
+  }, [player]);
+
   const toggle = () => {
     Haptics.selectionAsync();
     if (status.playing) {
       player.pause();
+      if (activePlayer === player) activePlayer = null;
       return;
     }
+    // Stop whatever else was playing before starting this one.
+    if (activePlayer && activePlayer !== player) {
+      try {
+        activePlayer.pause();
+      } catch {
+        // player may already be released
+      }
+    }
+    activePlayer = player;
     // Replay from the top if it had finished.
     if (status.didJustFinish || (status.duration > 0 && status.currentTime >= status.duration)) {
       player.seekTo(0);
