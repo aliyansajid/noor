@@ -11,6 +11,7 @@ import { reflectOnVerse } from "@/features/chat/ai";
 import { TypingDots } from "@/features/chat/components/typing-dots";
 import { Ayah } from "@/features/chat/types";
 import { fetchDailyAyah } from "@/features/quran/verses";
+import { useSettings } from "@/features/settings/settings-context";
 import { useTheme } from "@/hooks/use-theme";
 
 function formatDate(d: Date) {
@@ -25,13 +26,19 @@ function formatDate(d: Date) {
 export default function Today() {
   const theme = useTheme();
   const router = useRouter();
+  const { settings } = useSettings();
   const [ayah, setAyah] = useState<Ayah | null>(null);
   const [reflection, setReflection] = useState("");
   const [failed, setFailed] = useState(false);
   const dateLabel = useRef(formatDate(new Date())).current;
 
+  // Re-fetch when the translation or reciter changes so the verse reflects the
+  // user's chosen editions.
   useEffect(() => {
     const controller = new AbortController();
+    setAyah(null);
+    setReflection("");
+    setFailed(false);
     (async () => {
       const verse = await fetchDailyAyah(new Date(), controller.signal);
       if (controller.signal.aborted) return;
@@ -48,7 +55,7 @@ export default function Today() {
       if (!controller.signal.aborted) setReflection(r);
     })();
     return () => controller.abort();
-  }, []);
+  }, [settings.translation, settings.reciter]);
 
   const askAboutVerse = () => {
     if (!ayah) return;
@@ -59,7 +66,7 @@ export default function Today() {
   };
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
+    <Screen scroll edges={["top", "left", "right"]} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <ThemedText type="caption" themeColor="accent" style={styles.eyebrow}>
           VERSE OF THE DAY

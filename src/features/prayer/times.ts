@@ -4,8 +4,9 @@
  * month's calendar, and compute which prayer is next.
  */
 
+import { getSettings } from '@/features/settings/settings';
+
 const BASE = 'https://api.aladhan.com/v1';
-const METHOD = 3; // Muslim World League — a widely-used default calculation
 
 /** The five obligatory prayers, in order (used for "next prayer"). */
 const PRAYER_ORDER = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'] as const;
@@ -63,7 +64,7 @@ export async function fetchTimings(
 ): Promise<PrayerData | null> {
   const path = 'city' in loc ? 'timingsByCity' : 'timings';
   const d = `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
-  const json = await getJson(`${BASE}/${path}/${d}?${locQuery(loc)}&method=${METHOD}`, signal);
+  const json = await getJson(`${BASE}/${path}/${d}?${locQuery(loc)}&method=${getSettings().prayerMethod}`, signal);
   const data = json?.data;
   if (!data?.timings) return null;
 
@@ -93,7 +94,7 @@ export async function fetchCalendar(
   signal?: AbortSignal,
 ): Promise<CalendarDay[] | null> {
   const path = 'city' in loc ? 'calendarByCity' : 'calendar';
-  const json = await getJson(`${BASE}/${path}/${year}/${month}?${locQuery(loc)}&method=${METHOD}`, signal);
+  const json = await getJson(`${BASE}/${path}/${year}/${month}?${locQuery(loc)}&method=${getSettings().prayerMethod}`, signal);
   const days = json?.data;
   if (!Array.isArray(days)) return null;
 

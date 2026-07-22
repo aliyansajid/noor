@@ -7,12 +7,26 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
+import { SettingsProvider } from '@/features/settings/settings-context';
 import { useAppFonts } from '@/hooks/use-app-fonts';
 import { useColorSchemeName } from '@/hooks/use-theme';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <SettingsProvider>
+          <ThemedApp />
+        </SettingsProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+/** Rendered inside SettingsProvider so the theme can react to the user's choice. */
+function ThemedApp() {
   const scheme = useColorSchemeName();
   const { loaded, error } = useAppFonts();
 
@@ -35,31 +49,27 @@ export default function RootLayout() {
   const navTheme = scheme === 'dark' ? DarkTheme : DefaultTheme;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <ThemeProvider
-          value={{
-            ...navTheme,
-            colors: {
-              ...navTheme.colors,
-              background: colors.background,
-              card: colors.surface,
-              text: colors.text,
-              border: colors.border,
-              primary: colors.primary,
-            },
-          }}
-        >
-          <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-              animation: 'fade',
-            }}
-          />
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ThemeProvider
+      value={{
+        ...navTheme,
+        colors: {
+          ...navTheme.colors,
+          background: colors.background,
+          card: colors.surface,
+          text: colors.text,
+          border: colors.border,
+          primary: colors.primary,
+        },
+      }}
+    >
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+          animation: 'fade',
+        }}
+      />
+    </ThemeProvider>
   );
 }

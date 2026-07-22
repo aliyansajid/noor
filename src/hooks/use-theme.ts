@@ -1,19 +1,19 @@
 /**
- * Resolves the active Noor color set. Dark is the brand default — when the
- * system scheme is unspecified we fall back to dark, not light.
+ * Resolves the active Noor color set from the user's theme preference.
+ * "system" follows the device; otherwise the chosen light/dark wins. When the
+ * system scheme is unspecified we fall back to dark — the brand default.
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { Colors, ColorScheme } from '@/constants/theme';
+import { useColorScheme } from 'react-native';
 
-/**
- * Noor is a dark-first, single-theme product for the MVP — the night-emerald
- * palette is the brand. We pin the scheme to dark so the whole app (onboarding,
- * which paints its own dark gradient, and the theme-driven screens) stays
- * visually consistent regardless of the device's system appearance.
- */
+import { Colors, ColorScheme } from '@/constants/theme';
+import { useSettings } from '@/features/settings/settings-context';
+
 export function useColorSchemeName(): ColorScheme {
-  return 'dark';
+  const { settings } = useSettings();
+  const system = useColorScheme() ?? 'dark';
+  return settings.theme === 'system' ? (system as ColorScheme) : settings.theme;
 }
 
 export function useTheme() {

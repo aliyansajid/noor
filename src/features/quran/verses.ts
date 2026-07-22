@@ -6,9 +6,16 @@
  */
 
 import { Ayah } from '@/features/chat/types';
+import { getSettings } from '@/features/settings/settings';
 
 const AYAH_URL = 'https://api.alquran.cloud/v1/ayah';
-const EDITIONS = 'quran-uthmani,en.sahih,en.transliteration,ar.alafasy';
+
+/** Editions to request, in the fixed order fetchAyah parses: arabic, translation,
+ * transliteration, audio. Translation and reciter follow the user's settings. */
+function editionsParam() {
+  const { translation, reciter } = getSettings();
+  return `quran-uthmani,${translation},en.transliteration,${reciter}`;
+}
 
 /** Fetch one verse in all display editions. Returns null on any failure. */
 export async function fetchAyah(
@@ -17,7 +24,7 @@ export async function fetchAyah(
   signal?: AbortSignal,
 ): Promise<Ayah | null> {
   try {
-    const res = await fetch(`${AYAH_URL}/${surah}:${ayah}/editions/${EDITIONS}`, { signal });
+    const res = await fetch(`${AYAH_URL}/${surah}:${ayah}/editions/${editionsParam()}`, { signal });
     if (!res.ok) return null;
     const json = await res.json();
     const editions = json?.data;

@@ -15,6 +15,8 @@ import {
   nextPrayer,
   PrayerData,
 } from "@/features/prayer/times";
+import { formatTime } from "@/features/settings/settings";
+import { useSettings } from "@/features/settings/settings-context";
 import { useTheme } from "@/hooks/use-theme";
 
 const DISPLAY_ORDER = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
@@ -27,6 +29,7 @@ const MONTH_NAMES = [
  * a city override for when GPS isn't right (or is denied). */
 export default function Prayer() {
   const theme = useTheme();
+  const { settings } = useSettings();
   const [loc, setLoc] = useState<Loc | null>(null);
   const [label, setLabel] = useState("");
   const [denied, setDenied] = useState(false);
@@ -87,7 +90,7 @@ export default function Prayer() {
       if (!controller.signal.aborted) setCalendar(c);
     })();
     return () => controller.abort();
-  }, [loc]);
+  }, [loc, settings.prayerMethod]);
 
   const submitCity = () => {
     const parts = query.split(",").map((s) => s.trim()).filter(Boolean);
@@ -108,7 +111,7 @@ export default function Prayer() {
   const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
+    <Screen scroll edges={["top", "left", "right"]} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <ThemedText type="caption" themeColor="accent" style={styles.eyebrow}>
           PRAYER TIMES
@@ -163,7 +166,7 @@ export default function Prayer() {
                 </ThemedText>
                 <View style={styles.heroRight}>
                   <ThemedText type="heading" themeColor="text">
-                    {next.time}
+                    {formatTime(next.time, settings.timeFormat)}
                   </ThemedText>
                   <ThemedText type="small" themeColor="accent">
                     in {formatCountdown(next.minutesUntil)}
@@ -195,7 +198,7 @@ export default function Prayer() {
                     type="bodyMedium"
                     style={{ color: isNext ? theme.primary : theme.textSecondary }}
                   >
-                    {r.time}
+                    {formatTime(r.time, settings.timeFormat)}
                   </ThemedText>
                 </View>
               );
@@ -231,6 +234,7 @@ const COLS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
 function CalendarTable({ calendar, todayNum }: { calendar: CalendarDay[]; todayNum: string }) {
   const theme = useTheme();
+  const { settings } = useSettings();
   return (
     <View>
       {/* header */}
@@ -267,7 +271,7 @@ function CalendarTable({ calendar, todayNum }: { calendar: CalendarDay[]; todayN
                 type="caption"
                 style={[styles.calCol, { color: isToday ? theme.primary : theme.text }]}
               >
-                {d.prayers.find((p) => p.name === c)?.time}
+                {formatTime(d.prayers.find((p) => p.name === c)?.time ?? "", settings.timeFormat)}
               </ThemedText>
             ))}
           </View>
