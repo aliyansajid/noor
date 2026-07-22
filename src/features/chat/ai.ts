@@ -314,36 +314,3 @@ export const STARTER_PROMPTS = [
   'Help me trust Allah with my future',
   'A verse about gratitude',
 ];
-
-const REFLECTION_PROMPT = `You are Noor, a gentle Qur'an companion. Given a verse, offer ONE short,
-warm reflection (1–2 sentences) that helps the reader carry its meaning into their day. Speak with
-adab and reverence. Reply with only the reflection — no preamble, no quotes, no verse number.`;
-
-/**
- * A brief AI reflection on an already-authentic verse, for the daily verse
- * screen. Returns an empty string on any failure so the verse still renders.
- */
-export async function reflectOnVerse(
-  reference: string,
-  translation: string,
-  signal?: AbortSignal,
-): Promise<string> {
-  if (!GEMINI_KEY) return '';
-  try {
-    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal,
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: REFLECTION_PROMPT }] },
-        contents: [{ role: 'user', parts: [{ text: `${reference}: "${translation}"` }] }],
-        generationConfig: { temperature: 0.8 },
-      }),
-    });
-    if (!res.ok) return '';
-    const json = await res.json();
-    return (json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
-  } catch {
-    return '';
-  }
-}

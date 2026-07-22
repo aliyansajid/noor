@@ -1,18 +1,13 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
-import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 import { AyahCard } from "@/components/ayah-card";
-import { Button } from "@/components/button";
 import { MosqueArt } from "@/components/mosque-art";
 import { Screen } from "@/components/screen";
 import { ThemedText } from "@/components/themed-text";
 import { FontFamily, Layout, Radius, Spacing } from "@/constants/theme";
-import { reflectOnVerse } from "@/features/chat/ai";
-import { TypingDots } from "@/features/chat/components/typing-dots";
 import { Ayah } from "@/features/chat/types";
 import { PrayerIcon } from "@/features/prayer/prayer-icon";
 import {
@@ -41,21 +36,15 @@ const HERO_MUTED = "#A7B0A9";
 const EMERALD = "#3FA985";
 const GOLD = "#E3C46B";
 
-function reflectionKey(d: Date) {
-  return `noor.reflection.${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-}
-
 /** Home — the landing hub: prayer hero, a way into asking, and today's verse. */
 export default function Home() {
   const theme = useTheme();
-  const router = useRouter();
   const { settings } = useSettings();
 
   const [now, setNow] = useState(() => new Date());
   const [loc, setLoc] = useState<Loc | null>(null);
   const [prayer, setPrayer] = useState<PrayerData | null>(null);
   const [ayah, setAyah] = useState<Ayah | null>(null);
-  const [reflection, setReflection] = useState("");
 
   // Keep the countdown / current-prayer highlight fresh.
   useEffect(() => {
@@ -96,40 +85,14 @@ export default function Home() {
     return () => controller.abort();
   }, [loc, settings.prayerMethod]);
 
-  // The daily verse + its cached AI reflection.
+  // The daily verse.
   useEffect(() => {
     const controller = new AbortController();
     setAyah(null);
-    setReflection("");
     (async () => {
-      const d = new Date();
-      const verse = await fetchDailyAyah(d, controller.signal);
+      const verse = await fetchDailyAyah(new Date(), controller.signal);
       if (controller.signal.aborted || !verse) return;
       setAyah(verse);
-
-      const key = reflectionKey(d);
-      try {
-        const raw = await AsyncStorage.getItem(key);
-        if (raw) {
-          const c = JSON.parse(raw);
-          if (c.reference === verse.reference && c.translation === settings.translation && c.text) {
-            if (!controller.signal.aborted) setReflection(c.text);
-            return;
-          }
-        }
-      } catch {
-        // fall through and generate
-      }
-
-      const r = await reflectOnVerse(verse.reference, verse.translation, controller.signal);
-      if (controller.signal.aborted) return;
-      setReflection(r);
-      if (r) {
-        AsyncStorage.setItem(
-          key,
-          JSON.stringify({ reference: verse.reference, translation: settings.translation, text: r }),
-        ).catch(() => {});
-      }
     })();
     return () => controller.abort();
   }, [settings.translation, settings.reciter]);
@@ -142,11 +105,6 @@ export default function Home() {
 
   const gregDate = `${MONTH_NAMES[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
   const dateLine = prayer?.hijri ? `${gregDate}  ·  ${prayer.hijri} AH` : gregDate;
-
-  const reflectOnToday = () => {
-    if (!ayah) return;
-    router.navigate({ pathname: "/chat", params: { prefill: `Help me reflect on ${ayah.reference}.` } });
-  };
 
   return (
     <Screen scroll edges={["top", "left", "right"]} contentContainerStyle={styles.content}>
@@ -209,30 +167,13 @@ export default function Home() {
       </View>
 
       {ayah ? (
-        <>
-          <AyahCard
-            arabic={ayah.arabic}
-            translation={ayah.translation}
-            reference={ayah.reference}
-            transliteration={ayah.transliteration}
-            audio={ayah.audio}
-          />
-          <View style={styles.reflection}>
-            <ThemedText type="caption" themeColor="accent" style={styles.eyebrow}>
-              REFLECTION
-            </ThemedText>
-            {reflection ? (
-              <ThemedText style={[styles.reflectionText, { color: theme.textSecondary }]}>
-                {reflection}
-              </ThemedText>
-            ) : (
-              <View style={styles.dots}>
-                <TypingDots />
-              </View>
-            )}
-          </View>
-          <Button title="Reflect with Noor" variant="secondary" onPress={reflectOnToday} />
-        </>
+        <AyahCard
+          arabic={ayah.arabic}
+          translation={ayah.translation}
+          reference={ayah.reference}
+          transliteration={ayah.transliteration}
+          audio={ayah.audio}
+        />
       ) : (
         <View style={styles.verseLoading}>
           <ActivityIndicator color={theme.primary} />
@@ -268,8 +209,4 @@ const styles = StyleSheet.create({
 
   verseHead: { marginTop: Spacing.xs },
   verseLoading: { paddingVertical: Spacing.xxl, alignItems: "center" },
-  reflection: { gap: Spacing.sm },
-  eyebrow: { letterSpacing: 1.5 },
-  reflectionText: { fontFamily: FontFamily.serif, fontSize: 18, lineHeight: 28, fontStyle: "italic" },
-  dots: { paddingVertical: Spacing.sm },
 });
