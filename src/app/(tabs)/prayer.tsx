@@ -212,7 +212,7 @@ export default function Prayer() {
                       {r.name}
                     </ThemedText>
                     {isCurrent ? (
-                      <View style={[styles.nowTag, { backgroundColor: theme.accentSoft }]}>
+                      <View style={[styles.nowTag, { backgroundColor: theme.primarySoft }]}>
                         <ThemedText type="caption" themeColor="accent">
                           Now
                         </ThemedText>
