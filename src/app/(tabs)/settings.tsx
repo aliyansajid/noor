@@ -23,88 +23,84 @@ export default function Settings() {
       <ScreenHeader title="Settings" />
 
       <SectionTitle>APPEARANCE</SectionTitle>
-        <Card elevated>
-          <FieldLabel>Theme</FieldLabel>
-          <Segmented<ThemePref>
-            value={settings.theme}
-            onChange={(v) => update({ theme: v })}
-            options={[
-              { label: "System", value: "system" },
-              { label: "Light", value: "light" },
-              { label: "Dark", value: "dark" },
-            ]}
-          />
-          <View style={styles.gap} />
-          <FieldLabel>Time format</FieldLabel>
-          <Segmented<TimeFormat>
-            value={settings.timeFormat}
-            onChange={(v) => update({ timeFormat: v })}
-            options={[
-              { label: "24-hour", value: "24h" },
-              { label: "12-hour", value: "12h" },
-            ]}
-          />
-        </Card>
+      <Card elevated>
+        <FieldLabel>Theme</FieldLabel>
+        <Segmented<ThemePref>
+          value={settings.theme}
+          onChange={(v) => update({ theme: v })}
+          options={[
+            { label: "System", value: "system" },
+            { label: "Light", value: "light" },
+            { label: "Dark", value: "dark" },
+          ]}
+        />
+        <View style={styles.gap} />
+        <FieldLabel>Time format</FieldLabel>
+        <Segmented<TimeFormat>
+          value={settings.timeFormat}
+          onChange={(v) => update({ timeFormat: v })}
+          options={[
+            { label: "24-hour", value: "24h" },
+            { label: "12-hour", value: "12h" },
+          ]}
+        />
+      </Card>
 
-        <SectionTitle>READING</SectionTitle>
-        <Card elevated list>
-          <NavRow
-            label="Translation"
-            value={settings.translationName}
-            onPress={() => router.push({ pathname: "/edition-picker", params: { field: "translation" } })}
-          />
-          <Divider />
-          <NavRow
-            label="Reciter"
-            value={settings.reciterName}
-            onPress={() => router.push({ pathname: "/edition-picker", params: { field: "reciter" } })}
-          />
-        </Card>
+      <SectionTitle>READING</SectionTitle>
+      <Card elevated list>
+        <NavRow
+          label="Translation"
+          value={settings.translationName}
+          onPress={() => router.push({ pathname: "/edition-picker", params: { field: "translation" } })}
+        />
+        <Divider />
+        <NavRow
+          label="Reciter"
+          value={settings.reciterName}
+          onPress={() => router.push({ pathname: "/edition-picker", params: { field: "reciter" } })}
+        />
+      </Card>
 
-        <SectionTitle>PRAYER</SectionTitle>
-        <Card elevated>
-          <FieldLabel>Calendar</FieldLabel>
-          <Segmented<CalendarSystem>
-            value={settings.calendar}
-            onChange={(v) => update({ calendar: v })}
-            options={[
-              { label: "Gregorian", value: "gregorian" },
-              { label: "Hijri", value: "hijri" },
-            ]}
-          />
-        </Card>
-        <Card elevated>
-          <FieldLabel>Calculation method</FieldLabel>
-          {PRAYER_METHODS.map((m, i) => {
-            const active = settings.prayerMethod === m.id;
-            return (
-              <Pressable
-                key={m.id}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  update({ prayerMethod: m.id });
-                }}
-                style={({ pressed }) => [
-                  styles.methodRow,
-                  i < PRAYER_METHODS.length - 1 && {
-                    borderBottomColor: theme.border,
-                    borderBottomWidth: StyleSheet.hairlineWidth,
-                  },
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <ThemedText type="body" style={{ color: active ? theme.primary : theme.text }}>
-                  {m.name}
-                </ThemedText>
-                {active ? <Check color={theme.primary} /> : null}
-              </Pressable>
-            );
-          })}
-        </Card>
+      <SectionTitle>PRAYER</SectionTitle>
+      <Card elevated>
+        <FieldLabel>Calendar</FieldLabel>
+        <Segmented<CalendarSystem>
+          value={settings.calendar}
+          onChange={(v) => update({ calendar: v })}
+          options={[
+            { label: "Gregorian", value: "gregorian" },
+            { label: "Hijri", value: "hijri" },
+          ]}
+        />
+        <View style={styles.gap} />
+        <FieldLabel>Calculation method</FieldLabel>
+        {PRAYER_METHODS.map((m, i) => {
+          const active = settings.prayerMethod === m.id;
+          return (
+            <Pressable
+              key={m.id}
+              onPress={() => {
+                Haptics.selectionAsync();
+                update({ prayerMethod: m.id });
+              }}
+              style={({ pressed }) => [
+                styles.methodRow,
+                i < PRAYER_METHODS.length - 1 && {
+                  borderBottomColor: theme.border,
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <ThemedText type="bodyMedium" style={{ color: active ? theme.primary : theme.text }}>
+                {m.name}
+              </ThemedText>
+              {active ? <Check color={theme.primary} /> : null}
+            </Pressable>
+          );
+        })}
+      </Card>
 
-      <ThemedText type="caption" themeColor="textMuted" style={styles.footer}>
-        Qur’an data by Al-Quran Cloud · Prayer times by AlAdhan
-      </ThemedText>
     </Screen>
   );
 }
@@ -204,7 +200,7 @@ function Divider() {
 }
 
 const styles = StyleSheet.create({
-  content: { gap: Spacing.sm, paddingBottom: Spacing.xxxl },
+  content: { gap: Spacing.sm },
   sectionTitle: { letterSpacing: 1.5, marginTop: Spacing.lg, marginBottom: Spacing.xs },
   fieldLabel: { marginBottom: Spacing.sm },
   gap: { height: Spacing.lg },
@@ -229,5 +225,4 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: Spacing.lg,
   },
-  footer: { textAlign: "center", marginTop: Spacing.xl },
 });

@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
   },
-  input: { flex: 1, fontSize: 15, paddingVertical: Spacing.xs },
+  input: { flex: 1, fontSize: 16, paddingVertical: Spacing.xs },
   note: { paddingVertical: Spacing.lg },
   loading: { paddingVertical: Spacing.xxl, alignItems: "center" },
   heroRow: {
