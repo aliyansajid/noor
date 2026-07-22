@@ -24,13 +24,17 @@
  * onDone closes it out.
  */
 
+import { fetch as expoFetch } from 'expo/fetch';
+
 import { Ayah } from '@/features/chat/types';
 import { fetchAyah, fetchRandomAyah } from '@/features/quran/verses';
 import { getSettings } from '@/features/settings/settings';
 
 const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
+const GEMINI_MODEL = 'gemini-3.5-flash';
+const GEMINI_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}`;
+const GEMINI_URL = `${GEMINI_BASE}:generateContent`;
+const GEMINI_STREAM_URL = `${GEMINI_BASE}:streamGenerateContent`;
 const QURAN_URL = 'https://api.alquran.cloud/v1';
 
 const MAX_ROUNDS = 8; // safety cap on tool-calling turns
@@ -266,8 +270,36 @@ async function runTool(name: string, args: any, ctx: AgentContext): Promise<unkn
   }
 }
 
-/** Drive the tool-calling loop until Gemini produces a final text answer. */
-async function runAgent(question: string, ctx: AgentContext): Promise<string> {
+const requestBody = (contents: any[]) =>
+  JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents,
+    tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
+    generationConfig: { temperature: 0.7 },
+  });
+
+const OUT_OF_ROUNDS =
+  'Here is what I found, though I wasn’t able to fully finish looking it up. Please try rephrasing your question.';
+
+/** Run the tool calls a model turn requested, appending its turn and the
+ * results to `contents` for the next round. */
+async function applyToolCalls(
+  contents: any[],
+  modelParts: any[],
+  calls: any[],
+  ctx: AgentContext,
+): Promise<void> {
+  contents.push({ role: 'model', parts: modelParts });
+  const responses = [];
+  for (const call of calls) {
+    const result = await runTool(call.name, call.args ?? {}, ctx);
+    responses.push({ functionResponse: { name: call.name, response: { result } } });
+  }
+  contents.push({ role: 'user', parts: responses });
+}
+
+/** Non-streaming tool-calling loop (fallback path). */
+async function runAgentBuffered(question: string, ctx: AgentContext): Promise<string> {
   const contents: any[] = [{ role: 'user', parts: [{ text: question }] }];
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -275,55 +307,126 @@ async function runAgent(question: string, ctx: AgentContext): Promise<string> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: ctx.signal,
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents,
-        tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
-        generationConfig: { temperature: 0.7 },
-      }),
+      body: requestBody(contents),
     });
     if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
 
     const json = await res.json();
-    const content = json?.candidates?.[0]?.content;
-    const parts: any[] = content?.parts ?? [];
+    const parts: any[] = json?.candidates?.[0]?.content?.parts ?? [];
     const calls = parts.filter((p) => p.functionCall).map((p) => p.functionCall);
 
     if (calls.length === 0) {
-      return parts
-        .map((p) => p.text ?? '')
-        .join('')
-        .trim();
+      return parts.map((p) => p.text ?? '').join('').trim();
     }
-
-    // Execute every requested tool, then feed the results back.
-    contents.push(content);
-    const responses = [];
-    for (const call of calls) {
-      const result = await runTool(call.name, call.args ?? {}, ctx);
-      responses.push({ functionResponse: { name: call.name, response: { result } } });
-    }
-    contents.push({ role: 'user', parts: responses });
+    await applyToolCalls(contents, parts, calls, ctx);
   }
+  return OUT_OF_ROUNDS;
+}
 
-  // Ran out of rounds — ask once more for a plain answer from what we gathered.
-  return 'Here is what I found, though I wasn’t able to fully finish looking it up. Please try rephrasing your question.';
+/** Stream one model turn (SSE). Forwards cumulative text via onText as tokens
+ * arrive, and returns the round's text + any function calls. */
+async function streamRound(
+  contents: any[],
+  ctx: AgentContext,
+  onText: (full: string) => void,
+): Promise<{ text: string; calls: any[] }> {
+  const res = await expoFetch(`${GEMINI_STREAM_URL}?alt=sse&key=${GEMINI_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal: ctx.signal,
+    body: requestBody(contents),
+  });
+  if (!res.ok || !res.body) throw new Error(`Gemini stream ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let text = '';
+  const calls: any[] = [];
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+      let chunk: any;
+      try {
+        chunk = JSON.parse(payload);
+      } catch {
+        continue; // partial JSON line — skip (rare with SSE framing)
+      }
+      const parts: any[] = chunk?.candidates?.[0]?.content?.parts ?? [];
+      for (const p of parts) {
+        if (typeof p.text === 'string' && p.text) {
+          text += p.text;
+          onText(text);
+        }
+        if (p.functionCall) calls.push(p.functionCall);
+      }
+    }
+  }
+  return { text, calls };
+}
+
+/** Streaming tool-calling loop. Tool rounds run silently; the final answer
+ * streams token-by-token. `onAnswerStart` fires once, when the answer begins
+ * (so verse cards can be shown just above the streaming text). */
+async function runAgentStreaming(
+  question: string,
+  ctx: AgentContext,
+  cbs: { onDelta: (full: string) => void; onAnswerStart: () => void },
+): Promise<string> {
+  const contents: any[] = [{ role: 'user', parts: [{ text: question }] }];
+
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    let started = false;
+    const { text, calls } = await streamRound(contents, ctx, (full) => {
+      if (!started) {
+        started = true;
+        cbs.onAnswerStart();
+      }
+      cbs.onDelta(full);
+    });
+
+    if (calls.length === 0) return text.trim();
+
+    const modelParts: any[] = [];
+    if (text) modelParts.push({ text });
+    for (const c of calls) modelParts.push({ functionCall: c });
+    await applyToolCalls(contents, modelParts, calls, ctx);
+  }
+  return OUT_OF_ROUNDS;
 }
 
 export type StreamHandle = { cancel: () => void };
 
 /**
- * Answer a question via the grounded agent, then reveal the text word-by-word
- * (streaming feel) before delivering the verses it looked up. Returns a cancel
- * handle.
+ * Answer a question via the grounded agent. Tool lookups run first (verse cards
+ * are delivered the moment the answer begins), then the answer streams in
+ * token-by-token. Falls back to a buffered word-by-word reveal if real
+ * streaming isn't available. Returns a cancel handle.
  */
 export function streamAnswer(
   question: string,
   cbs: { onText: (full: string) => void; onAyat: (ayat: Ayah[]) => void; onDone: () => void },
 ): StreamHandle {
   let cancelled = false;
+  let cardsSent = false;
   const controller = new AbortController();
   const timers: ReturnType<typeof setTimeout>[] = [];
+
+  const sendCards = (cards: Ayah[]) => {
+    if (cancelled || cardsSent || !cards.length) return;
+    cardsSent = true;
+    cbs.onAyat(cards);
+  };
 
   function reveal(answer: string, after: () => void) {
     const words = answer.split(' ');
@@ -348,13 +451,33 @@ export function streamAnswer(
     }
 
     const ctx: AgentContext = { signal: controller.signal, cards: [] };
-    try {
-      const answer = await runAgent(question, ctx);
-      if (cancelled) return;
 
+    // Prefer real token streaming.
+    try {
+      const answer = await runAgentStreaming(question, ctx, {
+        onDelta: (full) => {
+          if (!cancelled) cbs.onText(full);
+        },
+        onAnswerStart: () => sendCards(ctx.cards),
+      });
+      if (cancelled) return;
+      cbs.onText(answer); // settle final text (also covers a no-delta answer)
+      sendCards(ctx.cards);
+      cbs.onDone();
+      return;
+    } catch (streamErr) {
+      if (cancelled) return;
+      if (__DEV__) console.warn('[Noor AI] streaming failed, falling back', streamErr);
+      // Fall through to the buffered path with a fresh context.
+    }
+
+    // Fallback: buffered answer, revealed word-by-word.
+    const fctx: AgentContext = { signal: controller.signal, cards: [] };
+    try {
+      const answer = await runAgentBuffered(question, fctx);
+      if (cancelled) return;
       reveal(answer, () => {
-        if (cancelled) return;
-        if (ctx.cards.length) cbs.onAyat(ctx.cards);
+        sendCards(fctx.cards);
         cbs.onDone();
       });
     } catch (err) {
