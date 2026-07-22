@@ -18,4 +18,6 @@ export type ChatMessage = {
   ayat?: Ayah[];
   /** true while the assistant answer is still streaming in */
   pending?: boolean;
+  /** how many verse cards are being fetched — renders skeletons until `ayat` arrives */
+  pendingCards?: number;
 };

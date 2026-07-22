@@ -61,6 +61,7 @@ How to work:
 - To explain, interpret, or give the meaning/context of a verse, call get_tafsir. The commentary is
   in Arabic — read it and explain it clearly in the user's language.
 - "Verses of sajda / prostration": call get_sajda.
+- "What is in juz N" (a para): call get_juz. "What is on page N" (mushaf page): call get_page.
 - "Give me a verse" / inspiration with no specific topic: call get_random_ayah.
 
 Once you have what you need, answer: warm, respectful (adab), 1–3 short paragraphs, speaking of
@@ -135,6 +136,26 @@ const TOOL_DECLARATIONS = [
     parameters: { type: 'object', properties: {} },
   },
   {
+    name: 'get_juz',
+    description:
+      'What a juz (1–30) contains: the surahs it spans and its start/end verse range. Use for "what is in juz N".',
+    parameters: {
+      type: 'object',
+      properties: { juz: { type: 'integer', description: 'Juz number 1–30' } },
+      required: ['juz'],
+    },
+  },
+  {
+    name: 'get_page',
+    description:
+      'The verses on a mushaf page (1–604): their references and the surah(s) on that page.',
+    parameters: {
+      type: 'object',
+      properties: { page: { type: 'integer', description: 'Page number 1–604' } },
+      required: ['page'],
+    },
+  },
+  {
     name: 'get_random_ayah',
     description: 'A random verse, for inspiration when no specific topic is asked. Shown as a card.',
     parameters: { type: 'object', properties: {} },
@@ -155,6 +176,9 @@ async function getJson(url: string, signal: AbortSignal): Promise<any | null> {
 type AgentContext = {
   signal: AbortSignal;
   cards: Ayah[]; // verses fetched via get_ayah, rendered as cards
+  /** Signals that `n` verse cards are about to be fetched, so the UI can show
+   * skeletons while they load. */
+  onPending?: (n: number) => void;
 };
 
 /** Add a fetched verse as a card (dedupe by reference, cap the count). */
@@ -211,6 +235,7 @@ async function runTool(name: string, args: any, ctx: AgentContext): Promise<unkn
     case 'get_ayah': {
       const start = Number(args.ayah);
       const count = Math.min(Math.max(Number(args.count ?? 1), 1), MAX_RANGE);
+      ctx.onPending?.(count); // hint the UI to show skeleton card(s)
       const verses: { reference: string; translation: string }[] = [];
       for (let i = 0; i < count; i++) {
         const ayah = await fetchAyah(args.surah, start + i, ctx.signal);
@@ -259,7 +284,36 @@ async function runTool(name: string, args: any, ctx: AgentContext): Promise<unkn
         })),
       };
     }
+    case 'get_juz': {
+      const json = await getJson(`${QURAN_URL}/juz/${args.juz}/en.sahih`, ctx.signal);
+      const ayahs = json?.data?.ayahs;
+      if (!Array.isArray(ayahs) || !ayahs.length) return { error: 'not found' };
+      const first = ayahs[0];
+      const last = ayahs[ayahs.length - 1];
+      return {
+        juz: Number(args.juz),
+        surahs: [...new Set(ayahs.map((a: any) => a.surah?.englishName).filter(Boolean))],
+        from: `${first.surah?.englishName} ${first.surah?.number}:${first.numberInSurah}`,
+        to: `${last.surah?.englishName} ${last.surah?.number}:${last.numberInSurah}`,
+        ayahCount: ayahs.length,
+      };
+    }
+    case 'get_page': {
+      const json = await getJson(`${QURAN_URL}/page/${args.page}/en.sahih`, ctx.signal);
+      const ayahs = json?.data?.ayahs;
+      if (!Array.isArray(ayahs) || !ayahs.length) return { error: 'not found' };
+      return {
+        page: Number(args.page),
+        surahs: [...new Set(ayahs.map((a: any) => a.surah?.englishName).filter(Boolean))],
+        count: ayahs.length,
+        ayahs: ayahs.slice(0, 20).map((a: any) => ({
+          reference: `${a.surah?.englishName} ${a.surah?.number}:${a.numberInSurah}`,
+          snippet: String(a.text ?? '').slice(0, 80),
+        })),
+      };
+    }
     case 'get_random_ayah': {
+      ctx.onPending?.(1);
       const ayah = await fetchRandomAyah(ctx.signal);
       if (!ayah) return { error: 'unavailable' };
       addCard(ctx, ayah);
@@ -415,7 +469,12 @@ export type StreamHandle = { cancel: () => void };
  */
 export function streamAnswer(
   question: string,
-  cbs: { onText: (full: string) => void; onAyat: (ayat: Ayah[]) => void; onDone: () => void },
+  cbs: {
+    onText: (full: string) => void;
+    onAyat: (ayat: Ayah[]) => void;
+    onPendingCards: (n: number) => void;
+    onDone: () => void;
+  },
 ): StreamHandle {
   let cancelled = false;
   let cardsSent = false;
@@ -450,7 +509,10 @@ export function streamAnswer(
       return;
     }
 
-    const ctx: AgentContext = { signal: controller.signal, cards: [] };
+    const onPending = (n: number) => {
+      if (!cancelled) cbs.onPendingCards(n);
+    };
+    const ctx: AgentContext = { signal: controller.signal, cards: [], onPending };
 
     // Prefer real token streaming.
     try {
@@ -472,7 +534,7 @@ export function streamAnswer(
     }
 
     // Fallback: buffered answer, revealed word-by-word.
-    const fctx: AgentContext = { signal: controller.signal, cards: [] };
+    const fctx: AgentContext = { signal: controller.signal, cards: [], onPending };
     try {
       const answer = await runAgentBuffered(question, fctx);
       if (cancelled) return;

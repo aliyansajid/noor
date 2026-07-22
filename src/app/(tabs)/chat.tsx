@@ -55,6 +55,12 @@ export default function Chat() {
         setMessages((prev) =>
           prev.map((m) => (m.id === assistantId ? { ...m, ayat } : m)),
         ),
+      onPendingCards: (n) =>
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, pendingCards: (m.pendingCards ?? 0) + n } : m,
+          ),
+        ),
       onDone: () => {
         setMessages((prev) =>
           prev.map((m) =>
