@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
@@ -22,6 +23,11 @@ function formatDate(d: Date) {
   });
 }
 
+/** Stable per-day key so the reflection is generated once a day, not per open. */
+function dayKey(d: Date) {
+  return `noor.reflection.${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
 /** The daily verse: one hand-picked ayah per day with a short AI reflection. */
 export default function Today() {
   const theme = useTheme();
@@ -40,19 +46,40 @@ export default function Today() {
     setReflection("");
     setFailed(false);
     (async () => {
-      const verse = await fetchDailyAyah(new Date(), controller.signal);
+      const now = new Date();
+      const verse = await fetchDailyAyah(now, controller.signal);
       if (controller.signal.aborted) return;
       if (!verse) {
         setFailed(true);
         return;
       }
       setAyah(verse);
-      const r = await reflectOnVerse(
-        verse.reference,
-        verse.translation,
-        controller.signal,
-      );
-      if (!controller.signal.aborted) setReflection(r);
+
+      // Reflection is stable for the day → cache it and skip the Gemini call
+      // on subsequent opens. Keyed by day + verse + translation.
+      const key = dayKey(now);
+      try {
+        const raw = await AsyncStorage.getItem(key);
+        if (raw) {
+          const c = JSON.parse(raw);
+          if (c.reference === verse.reference && c.translation === settings.translation && c.text) {
+            if (!controller.signal.aborted) setReflection(c.text);
+            return;
+          }
+        }
+      } catch {
+        // cache miss / parse error — fall through and generate
+      }
+
+      const r = await reflectOnVerse(verse.reference, verse.translation, controller.signal);
+      if (controller.signal.aborted) return;
+      setReflection(r);
+      if (r) {
+        AsyncStorage.setItem(
+          key,
+          JSON.stringify({ reference: verse.reference, translation: settings.translation, text: r }),
+        ).catch(() => {});
+      }
     })();
     return () => controller.abort();
   }, [settings.translation, settings.reciter]);
