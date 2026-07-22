@@ -13,11 +13,11 @@
  */
 
 import { Ayah } from '@/features/chat/types';
+import { fetchAyah } from '@/features/quran/verses';
 
 const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const GEMINI_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
-const QURAN_URL = 'https://api.alquran.cloud/v1/ayah';
 
 const SYSTEM_PROMPT = `You are Noor, a warm and knowledgeable Qur'an companion for Muslims.
 Answer the user's question with grounding in the Qur'an, in gentle, respectful language (adab).
@@ -78,31 +78,6 @@ async function askGemini(question: string, signal: AbortSignal): Promise<AiResul
 
   const parsed = JSON.parse(text) as AiResult;
   return { answer: parsed.answer?.trim() ?? '', ayat: parsed.ayat ?? [] };
-}
-
-/** Fetch authentic Arabic + translation + transliteration for one verse. */
-async function fetchAyah(surah: number, ayah: number, signal: AbortSignal): Promise<Ayah | null> {
-  try {
-    const res = await fetch(
-      `${QURAN_URL}/${surah}:${ayah}/editions/quran-uthmani,en.sahih,en.transliteration,ar.alafasy`,
-      { signal },
-    );
-    if (!res.ok) return null;
-    const json = await res.json();
-    const editions = json?.data;
-    if (!Array.isArray(editions) || editions.length < 2) return null;
-
-    const [arabicEd, translationEd, translitEd, audioEd] = editions;
-    return {
-      arabic: arabicEd.text,
-      translation: translationEd.text,
-      transliteration: translitEd?.text,
-      audio: audioEd?.audio, // Alafasy recitation MP3, if present
-      reference: `${arabicEd.surah.englishName} ${arabicEd.surah.number}:${arabicEd.numberInSurah}`,
-    };
-  } catch {
-    return null; // network hiccup on one verse shouldn't sink the answer
-  }
 }
 
 export type StreamHandle = { cancel: () => void };
@@ -182,3 +157,36 @@ export const STARTER_PROMPTS = [
   'Help me trust Allah with my future',
   'A verse about gratitude',
 ];
+
+const REFLECTION_PROMPT = `You are Noor, a gentle Qur'an companion. Given a verse, offer ONE short,
+warm reflection (1–2 sentences) that helps the reader carry its meaning into their day. Speak with
+adab and reverence. Reply with only the reflection — no preamble, no quotes, no verse number.`;
+
+/**
+ * A brief AI reflection on a verse, for the daily verse screen. Returns an
+ * empty string on any failure so the verse can still render on its own.
+ */
+export async function reflectOnVerse(
+  reference: string,
+  translation: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  if (!GEMINI_KEY) return '';
+  try {
+    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal,
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: REFLECTION_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: `${reference}: "${translation}"` }] }],
+        generationConfig: { temperature: 0.8 },
+      }),
+    });
+    if (!res.ok) return '';
+    const json = await res.json();
+    return (json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
+  } catch {
+    return '';
+  }
+}

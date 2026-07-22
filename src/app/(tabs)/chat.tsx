@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -7,10 +8,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
 import { ThemedText } from "@/components/themed-text";
@@ -24,7 +22,6 @@ import { useTheme } from "@/hooks/use-theme";
 
 export default function Chat() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -74,6 +71,17 @@ export default function Chat() {
     setMessages([]);
   };
 
+  // Auto-send a prefilled question handed over from the Today tab.
+  const params = useLocalSearchParams<{ prefill?: string }>();
+  const handledPrefill = useRef<string | null>(null);
+  useEffect(() => {
+    const p = typeof params.prefill === "string" ? params.prefill : undefined;
+    if (p && handledPrefill.current !== p) {
+      handledPrefill.current = p;
+      send(p);
+    }
+  }, [params.prefill, send]);
+
   const isEmpty = messages.length === 0;
 
   return (
@@ -105,7 +113,6 @@ export default function Chat() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
         {isEmpty ? (
           <View style={styles.emptyWrap}>
@@ -126,12 +133,7 @@ export default function Chat() {
           </ScrollView>
         )}
 
-        <View
-          style={[
-            styles.inputBar,
-            { paddingBottom: Math.max(insets.bottom, Spacing.md) },
-          ]}
-        >
+        <View style={styles.inputBar}>
           <ChatInput onSend={send} disabled={streaming} />
         </View>
       </KeyboardAvoidingView>
@@ -162,5 +164,9 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.lg,
   },
-  inputBar: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
+  inputBar: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+  },
 });

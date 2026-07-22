@@ -23,7 +23,7 @@ export default function Onboarding() {
     next();
   };
 
-  const finish = () => router.replace('/chat');
+  const finish = () => router.replace('/today');
 
   // Ordered flow. Each entry renders one full-screen beat.
   const steps = useMemo(
