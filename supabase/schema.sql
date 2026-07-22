@@ -66,3 +66,65 @@ create policy "profiles are self-owned" on public.profiles
 drop policy if exists "settings are self-owned" on public.user_settings;
 create policy "settings are self-owned" on public.user_settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 4) Chat history: conversations + their messages (ayah cards stored as jsonb).
+create table if not exists public.conversations (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  title      text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists conversations_user_updated
+  on public.conversations (user_id, updated_at desc);
+
+create table if not exists public.messages (
+  id              uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.conversations (id) on delete cascade,
+  role            text not null check (role in ('user', 'assistant')),
+  content         text not null default '',
+  ayat            jsonb,
+  created_at      timestamptz not null default now()
+);
+create index if not exists messages_conversation_created
+  on public.messages (conversation_id, created_at);
+
+drop trigger if exists conversations_touch on public.conversations;
+create trigger conversations_touch before update on public.conversations
+  for each row execute function public.touch_updated_at();
+
+-- Bump the parent conversation's updated_at whenever a message is added.
+create or replace function public.bump_conversation()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  update public.conversations set updated_at = now() where id = new.conversation_id;
+  return new;
+end $$;
+
+drop trigger if exists messages_bump on public.messages;
+create trigger messages_bump after insert on public.messages
+  for each row execute function public.bump_conversation();
+
+alter table public.conversations enable row level security;
+alter table public.messages      enable row level security;
+
+drop policy if exists "conversations are self-owned" on public.conversations;
+create policy "conversations are self-owned" on public.conversations
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- A message is accessible when the user owns its parent conversation.
+drop policy if exists "messages via own conversation" on public.messages;
+create policy "messages via own conversation" on public.messages
+  for all
+  using (
+    exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id and c.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id and c.user_id = auth.uid()
+    )
+  );

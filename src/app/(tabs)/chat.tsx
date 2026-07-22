@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -18,11 +18,17 @@ import { streamAnswer, StreamHandle } from "@/features/chat/ai";
 import { ChatInput } from "@/features/chat/components/chat-input";
 import { EmptyState } from "@/features/chat/components/empty-state";
 import { MessageBubble } from "@/features/chat/components/message-bubble";
-import { ChatMessage } from "@/features/chat/types";
+import { createConversation, loadMessages, saveMessage } from "@/features/chat/history";
+import { Ayah, ChatMessage } from "@/features/chat/types";
+import { useAuth } from "@/features/auth/auth-context";
 import { useTheme } from "@/hooks/use-theme";
 
 export default function Chat() {
   const theme = useTheme();
+  const router = useRouter();
+  const { configured, session } = useAuth();
+  const persist = !!(configured && session);
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -30,57 +36,99 @@ export default function Chat() {
   const idRef = useRef(0);
   const nextId = () => `m${idRef.current++}`;
 
+  // The conversation being written to (null = fresh, not yet created).
+  const conversationIdRef = useRef<string | null>(null);
+  // The current answer's final text/verses, captured for persistence on done.
+  const finalTextRef = useRef("");
+  const finalAyatRef = useRef<Ayah[] | undefined>(undefined);
+
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() =>
       scrollRef.current?.scrollToEnd({ animated: true }),
     );
   }, []);
 
-  const send = useCallback((text: string) => {
-    handleRef.current?.cancel();
-    const assistantId = nextId();
-    setMessages((prev) => [
-      ...prev,
-      { id: nextId(), role: "user", text },
-      { id: assistantId, role: "assistant", text: "", pending: true },
-    ]);
-    setStreaming(true);
+  const send = useCallback(
+    (text: string) => {
+      handleRef.current?.cancel();
+      const assistantId = nextId();
+      setMessages((prev) => [
+        ...prev,
+        { id: nextId(), role: "user", text },
+        { id: assistantId, role: "assistant", text: "", pending: true },
+      ]);
+      setStreaming(true);
+      finalTextRef.current = "";
+      finalAyatRef.current = undefined;
 
-    handleRef.current = streamAnswer(text, {
-      onText: (full) =>
-        setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, text: full } : m)),
-        ),
-      onAyat: (ayat) =>
-        setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, ayat } : m)),
-        ),
-      onPendingCards: (n) =>
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId ? { ...m, pendingCards: (m.pendingCards ?? 0) + n } : m,
+      // Persist (signed-in only): create the conversation on first message,
+      // then save the user's turn. Non-blocking — never delays the stream.
+      if (persist) {
+        (async () => {
+          if (!conversationIdRef.current) {
+            conversationIdRef.current = await createConversation(text);
+          }
+          if (conversationIdRef.current) saveMessage(conversationIdRef.current, "user", text);
+        })();
+      }
+
+      handleRef.current = streamAnswer(text, {
+        onText: (full) => {
+          finalTextRef.current = full;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, text: full } : m)),
+          );
+        },
+        onAyat: (ayat) => {
+          finalAyatRef.current = ayat;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, ayat } : m)),
+          );
+        },
+        onPendingCards: (n) =>
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, pendingCards: (m.pendingCards ?? 0) + n } : m,
+            ),
           ),
-        ),
-      onDone: () => {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId ? { ...m, pending: false } : m,
-          ),
-        );
-        setStreaming(false);
-      },
-    });
-  }, []);
+        onDone: () => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, pending: false } : m)),
+          );
+          setStreaming(false);
+          if (persist && conversationIdRef.current && finalTextRef.current) {
+            saveMessage(
+              conversationIdRef.current,
+              "assistant",
+              finalTextRef.current,
+              finalAyatRef.current,
+            );
+          }
+        },
+      });
+    },
+    [persist],
+  );
 
   const newChat = () => {
     handleRef.current?.cancel();
     setStreaming(false);
     setMessages([]);
+    conversationIdRef.current = null;
   };
 
-  // Auto-send a prefilled question handed over from the Today tab.
-  const params = useLocalSearchParams<{ prefill?: string }>();
+  const openConversation = useCallback(async (id: string) => {
+    handleRef.current?.cancel();
+    setStreaming(false);
+    conversationIdRef.current = id;
+    const msgs = await loadMessages(id);
+    setMessages(msgs);
+  }, []);
+
+  // Auto-send a prefilled question, or resume a conversation from History.
+  const params = useLocalSearchParams<{ prefill?: string; load?: string }>();
   const handledPrefill = useRef<string | null>(null);
+  const handledLoad = useRef<string | null>(null);
   useEffect(() => {
     const p = typeof params.prefill === "string" ? params.prefill : undefined;
     if (p && handledPrefill.current !== p) {
@@ -88,6 +136,13 @@ export default function Chat() {
       send(p);
     }
   }, [params.prefill, send]);
+  useEffect(() => {
+    const id = typeof params.load === "string" ? params.load : undefined;
+    if (id && handledLoad.current !== id) {
+      handledLoad.current = id;
+      openConversation(id);
+    }
+  }, [params.load, openConversation]);
 
   const isEmpty = messages.length === 0;
 
@@ -98,26 +153,55 @@ export default function Chat() {
     >
       <ScreenGlow />
 
-      {/* new-chat control, only while a conversation exists */}
-      {!isEmpty ? (
+      {/* History (signed-in) on the left, new-chat on the right */}
+      {persist || !isEmpty ? (
         <View style={styles.header}>
-          <Pressable
-            onPress={() => {
-              Haptics.selectionAsync();
-              newChat();
-            }}
-            hitSlop={10}
-            style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M12 5v14M5 12h14"
-                stroke={theme.textSecondary}
-                strokeWidth={2}
-                strokeLinecap="round"
-              />
-            </Svg>
-          </Pressable>
+          {persist ? (
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync();
+                router.push("/chat-history");
+              }}
+              hitSlop={10}
+              accessibilityLabel="Chat history"
+              style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-8 5M3 4v4h4M12 7v5l3.5 2"
+                  stroke={theme.textSecondary}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </Pressable>
+          ) : (
+            <View style={styles.headerBtn} />
+          )}
+
+          {!isEmpty ? (
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync();
+                newChat();
+              }}
+              hitSlop={10}
+              accessibilityLabel="New chat"
+              style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M12 5v14M5 12h14"
+                  stroke={theme.textSecondary}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                />
+              </Svg>
+            </Pressable>
+          ) : (
+            <View style={styles.headerBtn} />
+          )}
         </View>
       ) : null}
 
@@ -158,7 +242,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     paddingHorizontal: Layout.screenPadding,
     paddingTop: Spacing.sm,
   },

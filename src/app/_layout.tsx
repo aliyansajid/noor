@@ -80,6 +80,7 @@ function ThemedApp() {
             app-wide fade. */}
         <Stack.Screen name="edition-picker" options={{ animation: 'default' }} />
         <Stack.Screen name="auth" options={{ animation: 'default' }} />
+        <Stack.Screen name="chat-history" options={{ animation: 'default' }} />
       </Stack>
     </ThemeProvider>
   );
