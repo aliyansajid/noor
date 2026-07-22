@@ -28,13 +28,25 @@ authentic ayah citations and recitation — instead of shipping a shallow clone 
 - **AI:** Google Gemini (`gemini-3.5-flash`, free tier), called **directly** from the client
   (`src/features/chat/ai.ts`). New free-tier keys are gated to the Gemini 3.x line — `2.0-flash`
   has zero free quota and `2.5-flash` is closed to new users.
-- **Qur'an data:** Al-Quran Cloud API (`alquran.cloud`, no key) — Arabic text (Uthmani),
-  translation (Saheeh International), transliteration. Quran.com API optional for verse search (RAG).
+- **Qur'an data:** Al-Quran Cloud API (`alquran.cloud`, no key) — **this is our database.** Arabic
+  (Uthmani), translation (Saheeh International), transliteration, recitation (Alafasy), plus meta,
+  surah info, and search. 178 editions available (124 translations, 37 reciters).
 
-> **Trust split:** Gemini writes the answer and picks *which* ayah(s) to cite (surah/verse numbers
-> only). The authentic Arabic, translation, and transliteration are fetched from Al-Quran Cloud —
-> so the sacred text is never AI-generated. This directly satisfies the "never invent Surah:Ayah"
-> rule below.
+> **Al-Quran Cloud is the database; Gemini is the language layer.** Gemini never answers Qur'an
+> facts from its own memory. It understands the user's question, calls Al-Quran Cloud through
+> **tools** (function calling), reads the authentic result, and phrases it warmly. Every count,
+> verse, and structural fact returned to the user is real Qur'an data.
+>
+> The agent loop lives in `src/features/chat/ai.ts`. Tools exposed to Gemini:
+> - `get_meta` — authoritative counts (surahs, ayahs, sajdas, juz…)
+> - `get_surah_info` — one surah's name / #ayahs / Meccan-Medinan
+> - `get_ayah` — a verse's authentic text (fetched verses become the cards)
+> - `search_quran` — literal word search across the corpus
+>
+> Nuance: for *factual/structural* questions grounding is total (data **and** answer from the API).
+> For *thematic* questions the verse **text** is always authentic, but Gemini's judgement chooses
+> *which* verse — semantic search (embeddings/RAG) is the future upgrade that would ground the
+> selection too.
 
 > **API key:** direct client call for the MVP — the key ships in the bundle via
 > `EXPO_PUBLIC_GEMINI_API_KEY` (in `.env`, gitignored; see `.env.example`). This is a deliberate
