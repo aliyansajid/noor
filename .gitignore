@@ -44,3 +44,7 @@ example
 
 # reference screenshots (Bible Chat teardown — not product code)
 screenshots/
+
+# Local API reference dumps
+api-1.json
+api-1.yaml
