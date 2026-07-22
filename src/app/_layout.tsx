@@ -71,7 +71,10 @@ function ThemedApp() {
           contentStyle: { backgroundColor: colors.background },
           animation: 'fade',
         }}
-      />
+      >
+        {/* Drill-down pickers use the normal platform push, not the app-wide fade. */}
+        <Stack.Screen name="edition-picker" options={{ animation: 'default' }} />
+      </Stack>
     </ThemeProvider>
   );
 }
