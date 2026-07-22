@@ -45,9 +45,9 @@ export default function ChatHistory() {
     };
   }, []);
 
-  const open = (id: string) => {
+  const open = (id: string, title: string) => {
     Haptics.selectionAsync();
-    router.navigate({ pathname: "/chat", params: { load: id } });
+    router.navigate({ pathname: "/chat", params: { load: id, title } });
   };
 
   const remove = (id: string) => {
@@ -96,7 +96,7 @@ export default function ChatHistory() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {items.map((c) => (
             <View key={c.id} style={[styles.row, { borderBottomColor: theme.border }]}>
-              <Pressable style={styles.rowMain} onPress={() => open(c.id)}>
+              <Pressable style={styles.rowMain} onPress={() => open(c.id, c.title)}>
                 <ThemedText type="bodyMedium" themeColor="text" numberOfLines={1}>
                   {c.title}
                 </ThemedText>

@@ -13,12 +13,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
 import { ScreenGlow } from "@/components/screen-glow";
+import { ThemedText } from "@/components/themed-text";
 import { Layout, Spacing } from "@/constants/theme";
 import { streamAnswer, StreamHandle } from "@/features/chat/ai";
 import { ChatInput } from "@/features/chat/components/chat-input";
 import { EmptyState } from "@/features/chat/components/empty-state";
 import { MessageBubble } from "@/features/chat/components/message-bubble";
-import { createConversation, loadMessages, saveMessage } from "@/features/chat/history";
+import {
+  ConversationSummary,
+  createConversation,
+  listConversations,
+  loadMessages,
+  saveMessage,
+} from "@/features/chat/history";
 import { Ayah, ChatMessage } from "@/features/chat/types";
 import { useAuth } from "@/features/auth/auth-context";
 import { useTheme } from "@/hooks/use-theme";
@@ -31,6 +38,8 @@ export default function Chat() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
+  const [activeTitle, setActiveTitle] = useState("");
+  const [recent, setRecent] = useState<ConversationSummary[]>([]);
   const scrollRef = useRef<ScrollView>(null);
   const handleRef = useRef<StreamHandle | null>(null);
   const idRef = useRef(0);
@@ -60,6 +69,7 @@ export default function Chat() {
       setStreaming(true);
       finalTextRef.current = "";
       finalAyatRef.current = undefined;
+      if (!conversationIdRef.current) setActiveTitle(text); // first message titles the chat
 
       // Persist (signed-in only): create the conversation on first message,
       // then save the user's turn. Non-blocking — never delays the stream.
@@ -114,19 +124,37 @@ export default function Chat() {
     handleRef.current?.cancel();
     setStreaming(false);
     setMessages([]);
+    setActiveTitle("");
     conversationIdRef.current = null;
   };
 
-  const openConversation = useCallback(async (id: string) => {
+  const openConversation = useCallback(async (id: string, title?: string) => {
     handleRef.current?.cancel();
     setStreaming(false);
+    setActiveTitle(title ?? "");
     conversationIdRef.current = id;
     const msgs = await loadMessages(id);
     setMessages(msgs);
   }, []);
 
+  // Load recent conversations to surface on the empty state (signed-in only).
+  const isEmpty = messages.length === 0;
+  useEffect(() => {
+    if (!persist || !isEmpty) {
+      setRecent([]);
+      return;
+    }
+    let active = true;
+    listConversations().then((list) => {
+      if (active) setRecent(list.slice(0, 3));
+    });
+    return () => {
+      active = false;
+    };
+  }, [persist, isEmpty]);
+
   // Auto-send a prefilled question, or resume a conversation from History.
-  const params = useLocalSearchParams<{ prefill?: string; load?: string }>();
+  const params = useLocalSearchParams<{ prefill?: string; load?: string; title?: string }>();
   const handledPrefill = useRef<string | null>(null);
   const handledLoad = useRef<string | null>(null);
   useEffect(() => {
@@ -140,11 +168,10 @@ export default function Chat() {
     const id = typeof params.load === "string" ? params.load : undefined;
     if (id && handledLoad.current !== id) {
       handledLoad.current = id;
-      openConversation(id);
+      const title = typeof params.title === "string" ? params.title : undefined;
+      openConversation(id, title);
     }
-  }, [params.load, openConversation]);
-
-  const isEmpty = messages.length === 0;
+  }, [params.load, params.title, openConversation]);
 
   return (
     <SafeAreaView
@@ -180,6 +207,10 @@ export default function Chat() {
             <View style={styles.headerBtn} />
           )}
 
+          <ThemedText type="label" themeColor="text" numberOfLines={1} style={styles.headerTitle}>
+            {isEmpty ? "" : activeTitle}
+          </ThemedText>
+
           {!isEmpty ? (
             <Pressable
               onPress={() => {
@@ -211,7 +242,7 @@ export default function Chat() {
       >
         {isEmpty ? (
           <View style={styles.emptyWrap}>
-            <EmptyState onPick={send} />
+            <EmptyState onPick={send} recent={recent} onOpen={openConversation} />
           </View>
         ) : (
           <ScrollView
@@ -252,6 +283,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerTitle: { flex: 1, textAlign: "center", marginHorizontal: Spacing.sm },
   emptyWrap: { flex: 1, paddingHorizontal: Layout.screenPadding },
   messages: {
     paddingHorizontal: Layout.screenPadding,
