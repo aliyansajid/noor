@@ -81,7 +81,7 @@ export default function Home() {
       if (!controller.signal.aborted) setPrayer(t);
     })();
     return () => controller.abort();
-  }, [loc, settings.prayerMethod]);
+  }, [loc]);
 
   // The daily verse.
   useEffect(() => {

@@ -37,20 +37,6 @@ export const fetchTranslations = (signal?: AbortSignal) =>
 /** All audio reciters (37). */
 export const fetchReciters = (signal?: AbortSignal) => fetchEditions('format=audio', signal);
 
-/** AlAdhan calculation methods — the widely-used subset. */
-export const PRAYER_METHODS: { id: number; name: string }[] = [
-  { id: 3, name: 'Muslim World League' },
-  { id: 2, name: 'ISNA (North America)' },
-  { id: 5, name: 'Egyptian General Authority' },
-  { id: 4, name: 'Umm al-Qura, Makkah' },
-  { id: 1, name: 'University of Karachi' },
-  { id: 8, name: 'Gulf Region' },
-  { id: 9, name: 'Kuwait' },
-  { id: 10, name: 'Qatar' },
-  { id: 12, name: 'UOIF (France)' },
-  { id: 7, name: 'Tehran, Geophysics' },
-];
-
 /** Display names for the language codes the API returns. */
 export const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English', ar: 'Arabic', ur: 'Urdu', fr: 'French', id: 'Indonesian',

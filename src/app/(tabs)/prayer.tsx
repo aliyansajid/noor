@@ -101,7 +101,7 @@ export default function Prayer() {
       if (!controller.signal.aborted) setCalendar(c);
     })();
     return () => controller.abort();
-  }, [loc, settings.prayerMethod, settings.calendar]);
+  }, [loc, settings.calendar]);
 
   const submitCity = () => {
     const parts = query.split(",").map((s) => s.trim()).filter(Boolean);

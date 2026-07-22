@@ -1,10 +1,9 @@
 /**
  * Prayer times via the AlAdhan API (keyless). Given a location — GPS coords or
  * a city — we fetch the daily prayers (+ Sunrise & Hijri date) or a whole
- * month's calendar, and compute which prayer is next.
+ * month's calendar, and compute which prayer is next. No calculation method is
+ * sent: AlAdhan picks the regionally-correct method from the coordinates.
  */
-
-import { getSettings } from '@/features/settings/settings';
 
 const BASE = 'https://api.aladhan.com/v1';
 
@@ -71,7 +70,7 @@ export async function fetchTimings(
 ): Promise<PrayerData | null> {
   const path = 'city' in loc ? 'timingsByCity' : 'timings';
   const d = `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
-  const json = await getJson(`${BASE}/${path}/${d}?${locQuery(loc)}&method=${getSettings().prayerMethod}`, signal);
+  const json = await getJson(`${BASE}/${path}/${d}?${locQuery(loc)}`, signal);
   const data = json?.data;
   if (!data?.timings) return null;
 
@@ -109,7 +108,7 @@ export async function fetchCalendar(
 ): Promise<CalendarDay[] | null> {
   const base = system === 'hijri' ? 'hijriCalendar' : 'calendar';
   const path = 'city' in loc ? `${base}ByCity` : base;
-  const json = await getJson(`${BASE}/${path}/${year}/${month}?${locQuery(loc)}&method=${getSettings().prayerMethod}`, signal);
+  const json = await getJson(`${BASE}/${path}/${year}/${month}?${locQuery(loc)}`, signal);
   const days = json?.data;
   if (!Array.isArray(days)) return null;
 

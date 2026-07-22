@@ -19,7 +19,6 @@ export type Settings = {
   translationName: string; // human label for the UI
   reciter: string; // audio edition id, e.g. "ar.alafasy"
   reciterName: string;
-  prayerMethod: number; // AlAdhan calculation method id
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -30,7 +29,6 @@ export const DEFAULT_SETTINGS: Settings = {
   translationName: 'Saheeh International',
   reciter: 'ar.alafasy',
   reciterName: 'Mishary Rashid Alafasy',
-  prayerMethod: 3,
 };
 
 const STORAGE_KEY = 'noor.settings.v1';

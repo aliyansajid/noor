@@ -8,7 +8,6 @@ import { Screen } from "@/components/screen";
 import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
 import { Radius, Spacing } from "@/constants/theme";
-import { PRAYER_METHODS } from "@/features/quran/editions";
 import { useSettings } from "@/features/settings/settings-context";
 import { CalendarSystem, ThemePref, TimeFormat } from "@/features/settings/settings";
 import { useTheme } from "@/hooks/use-theme";
@@ -72,33 +71,6 @@ export default function Settings() {
             { label: "Hijri", value: "hijri" },
           ]}
         />
-        <View style={styles.gap} />
-        <FieldLabel>Calculation method</FieldLabel>
-        {PRAYER_METHODS.map((m, i) => {
-          const active = settings.prayerMethod === m.id;
-          return (
-            <Pressable
-              key={m.id}
-              onPress={() => {
-                Haptics.selectionAsync();
-                update({ prayerMethod: m.id });
-              }}
-              style={({ pressed }) => [
-                styles.methodRow,
-                i < PRAYER_METHODS.length - 1 && {
-                  borderBottomColor: theme.border,
-                  borderBottomWidth: StyleSheet.hairlineWidth,
-                },
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <ThemedText type="bodyMedium" style={{ color: active ? theme.primary : theme.text }}>
-                {m.name}
-              </ThemedText>
-              {active ? <Check color={theme.primary} /> : null}
-            </Pressable>
-          );
-        })}
       </Card>
 
     </Screen>
@@ -186,14 +158,6 @@ function NavRow({ label, value, onPress }: { label: string; value: string; onPre
   );
 }
 
-function Check({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Path d="M20 6L9 17l-5-5" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
 function Divider() {
   const theme = useTheme();
   return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.border }} />;
@@ -219,10 +183,4 @@ const styles = StyleSheet.create({
   },
   navRight: { flexDirection: "row", alignItems: "center", gap: Spacing.xs, flexShrink: 1, marginLeft: Spacing.lg },
   navValue: { flexShrink: 1 },
-  methodRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: Spacing.lg,
-  },
 });
