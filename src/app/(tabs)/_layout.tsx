@@ -31,6 +31,20 @@ function ChatIcon({ color }: { color: string }) {
   );
 }
 
+function PrayerIcon({ color }: { color: string }) {
+  // Crescent moon — an Islamic mark for the prayer/times tab.
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+        stroke={color}
+        strokeWidth={1.9}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export default function TabsLayout() {
   const theme = useTheme();
 
@@ -57,6 +71,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="chat"
         options={{ title: 'Chat', tabBarIcon: ({ color }) => <ChatIcon color={color as string} /> }}
+      />
+      <Tabs.Screen
+        name="prayer"
+        options={{ title: 'Prayer', tabBarIcon: ({ color }) => <PrayerIcon color={color as string} /> }}
       />
     </Tabs>
   );

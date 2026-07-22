@@ -33,7 +33,13 @@
           "imageWidth": 76
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Noor uses your location to show accurate prayer times for where you are."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

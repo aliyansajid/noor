@@ -17,7 +17,10 @@
  * onDone closes it out.
  */
 
+import * as Location from 'expo-location';
+
 import { Ayah } from '@/features/chat/types';
+import { fetchPrayerTimes, nextPrayer } from '@/features/prayer/times';
 import { fetchAyah } from '@/features/quran/verses';
 
 const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -42,6 +45,8 @@ How to work:
   relevant to the question.
 - Only when you are unsure which verse fits, use search_quran with a SINGLE keyword (it matches
   literal words, so try simple terms like "patience" or "mercy"). Use it at most twice.
+- For prayer / salah times (Fajr, Dhuhr, Asr, Maghrib, Isha, or "next prayer"), call
+  get_prayer_times — it uses the user's current location. Never state prayer times from memory.
 
 Once you have the verse(s) or fact you need, give your answer: warm, respectful (adab), 1–3 short
 paragraphs, speaking of Allah with reverence. Cite at most two verses as "Surah name S:A". Do not
@@ -85,6 +90,12 @@ const TOOL_DECLARATIONS = [
       properties: { query: { type: 'string', description: 'A single keyword, e.g. "patience"' } },
       required: ['query'],
     },
+  },
+  {
+    name: 'get_prayer_times',
+    description:
+      "Today's five prayer times (Fajr, Dhuhr, Asr, Maghrib, Isha) and the next prayer for the user's current location.",
+    parameters: { type: 'object', properties: {} },
   },
 ];
 
@@ -159,6 +170,28 @@ async function runTool(name: string, args: any, ctx: AgentContext): Promise<unkn
           snippet: String(m.text ?? '').slice(0, 90),
         })),
       };
+    }
+    case 'get_prayer_times': {
+      try {
+        let perm = await Location.getForegroundPermissionsAsync();
+        if (!perm.granted) perm = await Location.requestForegroundPermissionsAsync();
+        if (!perm.granted) return { error: 'location_permission_denied' };
+
+        const pos =
+          (await Location.getLastKnownPositionAsync()) ??
+          (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+        const now = new Date();
+        const data = await fetchPrayerTimes(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          now,
+          ctx.signal,
+        );
+        if (!data) return { error: 'unavailable' };
+        return { hijriDate: data.hijri, prayers: data.prayers, next: nextPrayer(data.prayers, now) };
+      } catch {
+        return { error: 'unavailable' };
+      }
     }
     default:
       return { error: `unknown tool ${name}` };
