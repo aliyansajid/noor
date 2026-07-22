@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 
 import {
@@ -8,24 +9,33 @@ import {
   Settings,
 } from '@/features/settings/settings';
 
+// Set once the intro has been seen (finished or skipped); gates the launch route.
+const ONBOARDED_KEY = 'noor.onboarded';
+
 type SettingsContextValue = {
   settings: Settings;
   /** Merge a partial update; persists and updates the module snapshot. */
   update: (patch: Partial<Settings>) => void;
-  /** True once persisted settings have loaded (before this, defaults are shown). */
+  /** True once persisted state has loaded (before this, defaults are shown). */
   loaded: boolean;
+  /** Whether the user has already been through onboarding. */
+  onboarded: boolean;
+  /** Mark onboarding as done (persists); call on finish or skip. */
+  completeOnboarding: () => void;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [onboarded, setOnboarded] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    loadSettings().then((s) => {
+    Promise.all([loadSettings(), AsyncStorage.getItem(ONBOARDED_KEY)]).then(([s, flag]) => {
       setSnapshot(s);
       setSettings(s);
+      setOnboarded(flag === '1');
       setLoaded(true);
     });
   }, []);
@@ -39,8 +49,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const completeOnboarding = useCallback(() => {
+    setOnboarded(true);
+    AsyncStorage.setItem(ONBOARDED_KEY, '1').catch(() => {});
+  }, []);
+
   return (
-    <SettingsContext.Provider value={{ settings, update, loaded }}>
+    <SettingsContext.Provider value={{ settings, update, loaded, onboarded, completeOnboarding }}>
       {children}
     </SettingsContext.Provider>
   );

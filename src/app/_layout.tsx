@@ -7,7 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
-import { SettingsProvider } from '@/features/settings/settings-context';
+import { SettingsProvider, useSettings } from '@/features/settings/settings-context';
 import { useAppFonts } from '@/hooks/use-app-fonts';
 import { useColorSchemeName } from '@/hooks/use-theme';
 
@@ -29,19 +29,21 @@ export default function RootLayout() {
 function ThemedApp() {
   const scheme = useColorSchemeName();
   const { loaded, error } = useAppFonts();
+  const { loaded: stateLoaded } = useSettings();
+  const ready = (loaded || error) && stateLoaded;
 
   useEffect(() => {
-    if (loaded || error) {
+    if (ready) {
       SplashScreen.hideAsync();
     }
-  }, [loaded, error]);
+  }, [ready]);
 
   // Recitation should play even when the iOS ringer switch is silenced.
   useEffect(() => {
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
   }, []);
 
-  if (!loaded && !error) {
+  if (!ready) {
     return null;
   }
 

@@ -1,10 +1,14 @@
 import { Redirect } from 'expo-router';
 
+import { useSettings } from '@/features/settings/settings-context';
+
 /**
- * App entry. For now we always route into onboarding; once auth/session state
- * exists this will branch: signed-in → /home, otherwise → /onboarding.
- * The design showcase lives at /showcase for reference.
+ * App entry. First launch → onboarding; afterwards → straight to Home.
+ * Persisted state is already loaded by the time this renders — the root layout
+ * holds the splash until then. Once auth/session state exists this also
+ * branches on it. The design showcase lives at /showcase for reference.
  */
 export default function Index() {
-  return <Redirect href="/onboarding" />;
+  const { onboarded } = useSettings();
+  return <Redirect href={onboarded ? '/home' : '/onboarding'} />;
 }
