@@ -15,10 +15,10 @@ import Svg, { Path } from "react-native-svg";
 
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
+import { streamAnswer, StreamHandle } from "@/features/chat/ai";
 import { ChatInput } from "@/features/chat/components/chat-input";
 import { EmptyState } from "@/features/chat/components/empty-state";
 import { MessageBubble } from "@/features/chat/components/message-bubble";
-import { streamAnswer, StreamHandle } from "@/features/chat/mock-ai";
 import { ChatMessage } from "@/features/chat/types";
 import { useTheme } from "@/hooks/use-theme";
 

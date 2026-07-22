@@ -25,13 +25,21 @@ authentic ayah citations and recitation — instead of shipping a shallow clone 
 - **TypeScript**
 - **react-native-reanimated 4** — animations
 - **Supabase** — auth + chat-history persistence *(to be added)*
-- **Vercel** serverless functions — proxy AI calls, keep keys server-side *(to be added)*
-- **AI:** Google Gemini (`gemini-2.0-flash`, free tier) primary; Groq (Llama, free) fallback
-- **Qur'an data:** Al-Quran Cloud API (`alquran.cloud`, no key) — Arabic text, translation,
-  transliteration, audio recitation. Quran.com/Quran Foundation API optional for verse search (RAG).
+- **AI:** Google Gemini (`gemini-3.5-flash`, free tier), called **directly** from the client
+  (`src/features/chat/ai.ts`). New free-tier keys are gated to the Gemini 3.x line — `2.0-flash`
+  has zero free quota and `2.5-flash` is closed to new users.
+- **Qur'an data:** Al-Quran Cloud API (`alquran.cloud`, no key) — Arabic text (Uthmani),
+  translation (Saheeh International), transliteration. Quran.com API optional for verse search (RAG).
 
-> The AI key lives **only** in the Vercel function — never in the app bundle. The app calls our
-> own endpoint, which calls Gemini.
+> **Trust split:** Gemini writes the answer and picks *which* ayah(s) to cite (surah/verse numbers
+> only). The authentic Arabic, translation, and transliteration are fetched from Al-Quran Cloud —
+> so the sacred text is never AI-generated. This directly satisfies the "never invent Surah:Ayah"
+> rule below.
+
+> **API key:** direct client call for the MVP — the key ships in the bundle via
+> `EXPO_PUBLIC_GEMINI_API_KEY` (in `.env`, gitignored; see `.env.example`). This is a deliberate
+> MVP tradeoff, called out in the Loom. Production path: proxy through a Vercel function so the key
+> stays server-side.
 
 ## Design system
 
@@ -104,5 +112,6 @@ Run on device: install **Expo Go** on the iPhone → `npx expo start` → scan Q
 - Read colors/spacing from `src/constants/theme.ts` — no hardcoded hex in components.
 - Arabic text must render RTL with the Uthmanic font; never left-align ayahs.
 - Keep answers respectful in tone (adab); the AI must cite real ayahs, never invent Surah:Ayah
-  numbers — ground with fetched verse data.
-- Secrets (AI keys, Supabase service role) never in the app bundle — only in Vercel env.
+  numbers — ground with fetched verse data (see the trust-split note under Stack).
+- The Gemini key ships in the bundle via `EXPO_PUBLIC_GEMINI_API_KEY` for the MVP (documented
+  tradeoff). Supabase service-role / other secrets must NOT — those belong server-side only.

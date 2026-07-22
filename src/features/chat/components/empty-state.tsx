@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { EmblemStage } from '@/features/onboarding/components/emblem-stage';
-import { STARTER_PROMPTS } from '@/features/chat/mock-ai';
+import { STARTER_PROMPTS } from '@/features/chat/ai';
 import { useTheme } from '@/hooks/use-theme';
 
 /** Shown before the first message: greeting + tappable starter prompts.
