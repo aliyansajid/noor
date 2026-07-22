@@ -65,12 +65,15 @@ const ARABIC_SCRIPT_IDS = [
   'quran-simple-enhanced',
 ];
 
-/** Readable Arabic script editions, in a sensible order (Uthmani first). */
+/** Readable Arabic script editions, in a sensible order (Uthmani first). Their
+ * Arabic names carry a trailing Latin "(identifier)" suffix — e.g. "(uthmani)" —
+ * which we strip, keeping the Arabic (and any Arabic parenthetical) clean. */
 export const fetchArabicScripts = async (signal?: AbortSignal): Promise<Edition[]> => {
   const all = await fetchEditions('format=text&type=quran', signal);
   return all
     .filter((e) => ARABIC_SCRIPT_IDS.includes(e.identifier))
-    .sort((a, b) => ARABIC_SCRIPT_IDS.indexOf(a.identifier) - ARABIC_SCRIPT_IDS.indexOf(b.identifier));
+    .sort((a, b) => ARABIC_SCRIPT_IDS.indexOf(a.identifier) - ARABIC_SCRIPT_IDS.indexOf(b.identifier))
+    .map((e) => ({ ...e, name: e.name.replace(/\s*\([a-z0-9-]+\)\s*$/i, '') }));
 };
 
 /** Display names for the language codes the API returns. */
