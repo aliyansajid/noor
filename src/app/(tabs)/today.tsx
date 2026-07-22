@@ -6,8 +6,9 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { AyahCard } from "@/components/ayah-card";
 import { Button } from "@/components/button";
 import { Screen } from "@/components/screen";
+import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
-import { FontFamily, Spacing } from "@/constants/theme";
+import { FontFamily, Layout, Spacing } from "@/constants/theme";
 import { reflectOnVerse } from "@/features/chat/ai";
 import { TypingDots } from "@/features/chat/components/typing-dots";
 import { Ayah } from "@/features/chat/types";
@@ -94,14 +95,7 @@ export default function Today() {
 
   return (
     <Screen scroll edges={["top", "left", "right"]} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <ThemedText type="caption" themeColor="accent" style={styles.eyebrow}>
-          VERSE OF THE DAY
-        </ThemedText>
-        <ThemedText type="title" themeColor="text">
-          {dateLabel}
-        </ThemedText>
-      </View>
+      <ScreenHeader eyebrow="VERSE OF THE DAY" title={dateLabel} />
 
       {ayah ? (
         <>
@@ -149,8 +143,7 @@ export default function Today() {
 }
 
 const styles = StyleSheet.create({
-  content: { gap: Spacing.xl },
-  header: { gap: Spacing.xs },
+  content: { gap: Layout.sectionGap },
   eyebrow: { letterSpacing: 1.5 },
   reflection: { gap: Spacing.sm },
   reflectionText: {

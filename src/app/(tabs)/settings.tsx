@@ -1,11 +1,11 @@
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Pressable, StyleSheet, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-// (tab screen — no back button)
 
 import { Card } from "@/components/card";
+import { Screen } from "@/components/screen";
+import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
 import { Radius, Spacing } from "@/constants/theme";
 import { PRAYER_METHODS } from "@/features/quran/editions";
@@ -19,15 +19,10 @@ export default function Settings() {
   const { settings, update } = useSettings();
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={["top"]}>
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <ThemedText type="subtitle" themeColor="text">
-          Settings
-        </ThemedText>
-      </View>
+    <Screen scroll edges={["top", "left", "right"]} contentContainerStyle={styles.content}>
+      <ScreenHeader title="Settings" />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <SectionTitle>APPEARANCE</SectionTitle>
+      <SectionTitle>APPEARANCE</SectionTitle>
         <Card elevated>
           <FieldLabel>Theme</FieldLabel>
           <Segmented<ThemePref>
@@ -52,7 +47,7 @@ export default function Settings() {
         </Card>
 
         <SectionTitle>READING</SectionTitle>
-        <Card elevated>
+        <Card elevated list>
           <NavRow
             label="Translation"
             value={settings.translationName}
@@ -78,12 +73,13 @@ export default function Settings() {
                   Haptics.selectionAsync();
                   update({ prayerMethod: m.id });
                 }}
-                style={[
+                style={({ pressed }) => [
                   styles.methodRow,
                   i < PRAYER_METHODS.length - 1 && {
                     borderBottomColor: theme.border,
                     borderBottomWidth: StyleSheet.hairlineWidth,
                   },
+                  pressed && { opacity: 0.7 },
                 ]}
               >
                 <ThemedText type="body" style={{ color: active ? theme.primary : theme.text }}>
@@ -95,11 +91,10 @@ export default function Settings() {
           })}
         </Card>
 
-        <ThemedText type="caption" themeColor="textMuted" style={styles.footer}>
-          Qur’an data by Al-Quran Cloud · Prayer times by AlAdhan
-        </ThemedText>
-      </ScrollView>
-    </SafeAreaView>
+      <ThemedText type="caption" themeColor="textMuted" style={styles.footer}>
+        Qur’an data by Al-Quran Cloud · Prayer times by AlAdhan
+      </ThemedText>
+    </Screen>
   );
 }
 
@@ -140,7 +135,11 @@ function Segmented<T extends string>({
               Haptics.selectionAsync();
               onChange(o.value);
             }}
-            style={[styles.segmentItem, active && { backgroundColor: theme.primary }]}
+            style={({ pressed }) => [
+              styles.segmentItem,
+              active && { backgroundColor: theme.primary },
+              pressed && !active && { opacity: 0.7 },
+            ]}
           >
             <ThemedText
               type="label"
@@ -158,7 +157,13 @@ function Segmented<T extends string>({
 function NavRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
   const theme = useTheme();
   return (
-    <Pressable onPress={onPress} style={styles.navRow}>
+    <Pressable
+      onPress={() => {
+        Haptics.selectionAsync();
+        onPress();
+      }}
+      style={({ pressed }) => [styles.navRow, { opacity: pressed ? 0.7 : 1 }]}
+    >
       <ThemedText type="bodyMedium" themeColor="text">
         {label}
       </ThemedText>
@@ -188,17 +193,7 @@ function Divider() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  back: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
-  content: { padding: Spacing.xl, gap: Spacing.sm, paddingBottom: Spacing.xxxl },
+  content: { gap: Spacing.sm, paddingBottom: Spacing.xxxl },
   sectionTitle: { letterSpacing: 1.5, marginTop: Spacing.lg, marginBottom: Spacing.xs },
   fieldLabel: { marginBottom: Spacing.sm },
   gap: { height: Spacing.lg },
@@ -213,7 +208,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
   },
   navRight: { flexDirection: "row", alignItems: "center", gap: Spacing.xs, flexShrink: 1, marginLeft: Spacing.lg },
   navValue: { flexShrink: 1 },
@@ -221,7 +216,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
   },
   footer: { textAlign: "center", marginTop: Spacing.xl },
 });

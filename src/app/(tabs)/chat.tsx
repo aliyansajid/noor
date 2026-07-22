@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -11,7 +12,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
-import { Spacing } from "@/constants/theme";
+import { ScreenGlow } from "@/components/screen-glow";
+import { Layout, Spacing } from "@/constants/theme";
 import { streamAnswer, StreamHandle } from "@/features/chat/ai";
 import { ChatInput } from "@/features/chat/components/chat-input";
 import { EmptyState } from "@/features/chat/components/empty-state";
@@ -88,10 +90,19 @@ export default function Chat() {
       style={[styles.safe, { backgroundColor: theme.background }]}
       edges={["top", "left", "right"]}
     >
+      <ScreenGlow />
+
       {/* new-chat control, only while a conversation exists */}
       {!isEmpty ? (
         <View style={styles.header}>
-          <Pressable onPress={newChat} hitSlop={10} style={styles.headerBtn}>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              newChat();
+            }}
+            hitSlop={10}
+            style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
+          >
             <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
               <Path
                 d="M12 5v14M5 12h14"
@@ -142,7 +153,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.screenPadding,
     paddingTop: Spacing.sm,
   },
   headerBtn: {
@@ -151,14 +162,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyWrap: { flex: 1, paddingHorizontal: Spacing.xl },
+  emptyWrap: { flex: 1, paddingHorizontal: Layout.screenPadding },
   messages: {
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.screenPadding,
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.lg,
   },
   inputBar: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Layout.screenPadding,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
   },

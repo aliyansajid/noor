@@ -5,8 +5,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "reac
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
+import { ScreenGlow } from "@/components/screen-glow";
 import { ThemedText } from "@/components/themed-text";
-import { Spacing } from "@/constants/theme";
+import { Layout, Spacing } from "@/constants/theme";
 import { Edition, fetchReciters, fetchTranslations, languageName } from "@/features/quran/editions";
 import { useSettings } from "@/features/settings/settings-context";
 import { useTheme } from "@/hooks/use-theme";
@@ -63,8 +64,13 @@ export default function EditionPicker() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={["top"]}>
+      <ScreenGlow />
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.back}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={({ pressed }) => [styles.back, { opacity: pressed ? 0.7 : 1 }]}
+        >
           <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
             <Path d="M15 18l-6-6 6-6" stroke={theme.text} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
@@ -94,7 +100,10 @@ export default function EditionPicker() {
                   <Pressable
                     key={e.identifier}
                     onPress={() => select(e)}
-                    style={[styles.row, { borderBottomColor: theme.border }]}
+                    style={({ pressed }) => [
+                      styles.row,
+                      { borderBottomColor: theme.border, opacity: pressed ? 0.7 : 1 },
+                    ]}
                   >
                     <View style={styles.rowText}>
                       <ThemedText
@@ -131,19 +140,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Layout.screenPadding,
     paddingVertical: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   back: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-  content: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxxl },
+  content: { paddingHorizontal: Layout.screenPadding, paddingBottom: Spacing.xxxl },
   groupTitle: { letterSpacing: 1.5, marginTop: Spacing.xl, marginBottom: Spacing.xs },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: Spacing.md,
   },

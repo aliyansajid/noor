@@ -7,17 +7,21 @@ import { useTheme } from '@/hooks/use-theme';
 type CardProps = {
   children: ReactNode;
   elevated?: boolean;
+  /** For row lists: drop the card's vertical padding so rows own the top/bottom
+   * spacing (avoids doubled inset). Horizontal padding is kept. */
+  list?: boolean;
   style?: ViewStyle;
 };
 
 /** Themed surface container with border + optional elevation. */
-export function Card({ children, elevated = false, style }: CardProps) {
+export function Card({ children, elevated = false, list = false, style }: CardProps) {
   const theme = useTheme();
 
   return (
     <View
       style={[
         styles.base,
+        list && styles.list,
         {
           backgroundColor: elevated ? theme.surfaceElevated : theme.surface,
           borderColor: theme.border,
@@ -36,5 +40,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     padding: Spacing.lg,
+  },
+  list: {
+    paddingVertical: 0,
   },
 });

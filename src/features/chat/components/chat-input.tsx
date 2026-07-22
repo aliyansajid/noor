@@ -34,9 +34,12 @@ export function ChatInput({ onSend, disabled }: Props) {
       <Pressable
         onPress={send}
         disabled={!canSend}
-        style={[
+        style={({ pressed }) => [
           styles.send,
-          { backgroundColor: canSend ? theme.primary : theme.surfaceSelected, opacity: canSend ? 1 : 0.6 },
+          {
+            backgroundColor: canSend ? theme.primary : theme.surfaceSelected,
+            opacity: !canSend ? 0.6 : pressed ? 0.7 : 1,
+          },
         ]}
       >
         <Svg width={20} height={20} viewBox="0 0 24 24">

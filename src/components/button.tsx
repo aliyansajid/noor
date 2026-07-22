@@ -60,7 +60,7 @@ export function Button({
           backgroundColor: bg[variant],
           borderColor: border[variant],
           width: fullWidth ? '100%' : undefined,
-          opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
+          opacity: disabled ? 0.5 : pressed ? 0.7 : 1,
         },
         style,
       ]}

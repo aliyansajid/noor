@@ -1,11 +1,13 @@
 import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from "react-native";
 
 import { Card } from "@/components/card";
 import { Screen } from "@/components/screen";
+import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
-import { Radius, Spacing } from "@/constants/theme";
+import { Layout, Radius, Spacing } from "@/constants/theme";
 import {
   CalendarDay,
   fetchCalendar,
@@ -95,6 +97,7 @@ export default function Prayer() {
   const submitCity = () => {
     const parts = query.split(",").map((s) => s.trim()).filter(Boolean);
     if (!parts.length) return;
+    Haptics.selectionAsync();
     setDenied(false);
     setLabel(parts[0]);
     setLoc({ city: parts[0], country: parts[1] });
@@ -112,19 +115,11 @@ export default function Prayer() {
 
   return (
     <Screen scroll edges={["top", "left", "right"]} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <ThemedText type="caption" themeColor="accent" style={styles.eyebrow}>
-          PRAYER TIMES
-        </ThemedText>
-        <ThemedText type="title" themeColor="text">
-          {label || "Prayer"}
-        </ThemedText>
-        {today?.hijri ? (
-          <ThemedText type="small" themeColor="textMuted">
-            {today.hijri} AH
-          </ThemedText>
-        ) : null}
-      </View>
+      <ScreenHeader
+        eyebrow="PRAYER TIMES"
+        title={label || "Prayer"}
+        subtitle={today?.hijri ? `${today.hijri} AH` : undefined}
+      />
 
       {/* City override */}
       <View style={[styles.search, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -137,7 +132,11 @@ export default function Prayer() {
           returnKeyType="search"
           style={[styles.input, { color: theme.text }]}
         />
-        <Pressable onPress={submitCity} hitSlop={8}>
+        <Pressable
+          onPress={submitCity}
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+        >
           <ThemedText type="label" themeColor="primary">
             Set
           </ThemedText>
@@ -177,7 +176,7 @@ export default function Prayer() {
           ) : null}
 
           {/* Today's full list */}
-          <Card elevated>
+          <Card elevated list>
             {rows.map((r, i) => {
               const isNext = next?.name === r.name;
               return (
@@ -207,8 +206,14 @@ export default function Prayer() {
 
           {/* Monthly calendar */}
           <Pressable
-            onPress={() => setShowCal((s) => !s)}
-            style={[styles.calToggle, { borderColor: theme.border }]}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setShowCal((s) => !s);
+            }}
+            style={({ pressed }) => [
+              styles.calToggle,
+              { borderColor: theme.border, opacity: pressed ? 0.7 : 1 },
+            ]}
           >
             <ThemedText type="label" themeColor="primary">
               {showCal ? "Hide" : "This month"} · {monthLabel}
@@ -282,8 +287,7 @@ function CalendarTable({ calendar, todayNum }: { calendar: CalendarDay[]; todayN
 }
 
 const styles = StyleSheet.create({
-  content: { gap: Spacing.lg },
-  header: { gap: Spacing.xs },
+  content: { gap: Layout.sectionGap },
   eyebrow: { letterSpacing: 1.5 },
   search: {
     flexDirection: "row",
@@ -307,7 +311,7 @@ const styles = StyleSheet.create({
   timeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
   },
   calToggle: {
     alignSelf: "flex-start",

@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -34,7 +35,10 @@ export function EmptyState({ onPick }: { onPick: (prompt: string) => void }) {
         {STARTER_PROMPTS.map((p) => (
           <Pressable
             key={p}
-            onPress={() => onPick(p)}
+            onPress={() => {
+              Haptics.selectionAsync();
+              onPick(p);
+            }}
             style={({ pressed }) => [
               styles.prompt,
               { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.7 : 1 },

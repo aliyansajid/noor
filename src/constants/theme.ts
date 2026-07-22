@@ -170,7 +170,8 @@ export const Shadows = {
 } as const;
 
 export const Layout = {
-  screenPadding: Spacing.xl,
+  screenPadding: 20, // consistent horizontal/screen frame across all tabs
+  sectionGap: Spacing.lg, // 16 — vertical rhythm between cards/sections
   maxContentWidth: 720,
   bottomTabInset: Platform.select({ ios: 50, android: 80 }) ?? 0,
 } as const;
