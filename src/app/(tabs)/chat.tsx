@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
-import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import { streamAnswer, StreamHandle } from "@/features/chat/ai";
 import { ChatInput } from "@/features/chat/components/chat-input";
@@ -89,12 +88,9 @@ export default function Chat() {
       style={[styles.safe, { backgroundColor: theme.background }]}
       edges={["top", "left", "right"]}
     >
-      {/* header */}
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <ThemedText type="subtitle" themeColor="primary">
-          Noor
-        </ThemedText>
-        {!isEmpty ? (
+      {/* new-chat control, only while a conversation exists */}
+      {!isEmpty ? (
+        <View style={styles.header}>
           <Pressable onPress={newChat} hitSlop={10} style={styles.headerBtn}>
             <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
               <Path
@@ -105,10 +101,8 @@ export default function Chat() {
               />
             </Svg>
           </Pressable>
-        ) : (
-          <View style={styles.headerBtn} />
-        )}
-      </View>
+        </View>
+      ) : null}
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -147,10 +141,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingTop: Spacing.sm,
   },
   headerBtn: {
     width: 28,
