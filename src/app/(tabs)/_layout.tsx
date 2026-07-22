@@ -5,13 +5,13 @@ import Svg, { Path } from 'react-native-svg';
 import { FontFamily } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-function TodayIcon({ color }: { color: string }) {
+function HomeIcon({ color }: { color: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
       <Path
-        d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"
+        d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"
         stroke={color}
-        strokeWidth={1.9}
+        strokeWidth={1.8}
         strokeLinejoin="round"
       />
     </Svg>
@@ -84,8 +84,8 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="today"
-        options={{ title: 'Today', tabBarIcon: ({ color }) => <TodayIcon color={color as string} /> }}
+        name="home"
+        options={{ title: 'Home', tabBarIcon: ({ color }) => <HomeIcon color={color as string} /> }}
       />
       <Tabs.Screen
         name="chat"
