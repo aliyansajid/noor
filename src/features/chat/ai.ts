@@ -1,10 +1,11 @@
 /**
  * Noor's AI — an agent, not a know-it-all.
  *
- * Gemini is never trusted for facts about the Qur'an. Its only job is to
- * understand the user's question, pull authentic data from Al-Quran Cloud
- * through tools, and phrase the result warmly. Every count, every verse, every
- * structural fact comes from the API — Gemini just orchestrates and narrates.
+ * The LLM (Groq / Llama, OpenAI-compatible) is never trusted for facts about the
+ * Qur'an. Its only job is to understand the user's question, pull authentic data
+ * from Al-Quran Cloud through tools, and phrase the result warmly. Every count,
+ * every verse, every structural fact comes from the API — the model just
+ * orchestrates and narrates.
  *
  * Tools it can call (all Al-Quran Cloud — the chat never leaves the Qur'an):
  *   • get_meta        — authoritative counts (surahs, ayahs, sajdas, juz…)
@@ -30,11 +31,10 @@ import { Ayah } from '@/features/chat/types';
 import { fetchAyah, fetchRandomAyah } from '@/features/quran/verses';
 import { getSettings } from '@/features/settings/settings';
 
-const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-const GEMINI_MODEL = 'gemini-3.5-flash';
-const GEMINI_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}`;
-const GEMINI_URL = `${GEMINI_BASE}:generateContent`;
-const GEMINI_STREAM_URL = `${GEMINI_BASE}:streamGenerateContent`;
+// Groq (OpenAI-compatible) — generous free tier, fast, supports tool calling.
+const GROQ_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const QURAN_URL = 'https://api.alquran.cloud/v1';
 
 const MAX_ROUNDS = 8; // safety cap on tool-calling turns
@@ -161,6 +161,9 @@ const TOOL_DECLARATIONS = [
     parameters: { type: 'object', properties: {} },
   },
 ];
+
+// OpenAI-compatible tool schema shape Groq expects.
+const TOOLS = TOOL_DECLARATIONS.map((t) => ({ type: 'function', function: t }));
 
 async function getJson(url: string, signal: AbortSignal): Promise<any | null> {
   try {
@@ -324,79 +327,90 @@ async function runTool(name: string, args: any, ctx: AgentContext): Promise<unkn
   }
 }
 
-const requestBody = (contents: any[]) =>
+const AUTH_HEADERS = {
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${GROQ_KEY}`,
+};
+
+/** messages already includes the running turns; system prompt is prepended. */
+const requestBody = (messages: any[], stream: boolean) =>
   JSON.stringify({
-    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents,
-    tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
-    generationConfig: { temperature: 0.7 },
+    model: GROQ_MODEL,
+    messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
+    tools: TOOLS,
+    temperature: 0.7,
+    stream,
   });
 
 const OUT_OF_ROUNDS =
   'Here is what I found, though I wasn’t able to fully finish looking it up. Please try rephrasing your question.';
 
-/** Run the tool calls a model turn requested, appending its turn and the
- * results to `contents` for the next round. */
+/** Run the tool calls a model turn requested, appending its turn and each
+ * result to `messages` for the next round (OpenAI tool-calling shape). */
 async function applyToolCalls(
-  contents: any[],
-  modelParts: any[],
-  calls: any[],
+  messages: any[],
+  assistantMessage: any,
+  toolCalls: any[],
   ctx: AgentContext,
 ): Promise<void> {
-  contents.push({ role: 'model', parts: modelParts });
-  const responses = [];
-  for (const call of calls) {
-    const result = await runTool(call.name, call.args ?? {}, ctx);
-    responses.push({ functionResponse: { name: call.name, response: { result } } });
+  messages.push(assistantMessage);
+  for (const tc of toolCalls) {
+    let args: any = {};
+    try {
+      args = tc.function?.arguments ? JSON.parse(tc.function.arguments) : {};
+    } catch {
+      args = {};
+    }
+    const result = await runTool(tc.function?.name, args, ctx);
+    messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
   }
-  contents.push({ role: 'user', parts: responses });
 }
 
 /** Non-streaming tool-calling loop (fallback path). */
 async function runAgentBuffered(question: string, ctx: AgentContext): Promise<string> {
-  const contents: any[] = [{ role: 'user', parts: [{ text: question }] }];
+  const messages: any[] = [{ role: 'user', content: question }];
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
-    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
+    const res = await fetch(GROQ_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: AUTH_HEADERS,
       signal: ctx.signal,
-      body: requestBody(contents),
+      body: requestBody(messages, false),
     });
-    if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
+    if (!res.ok) throw new Error(`Groq ${res.status}: ${await res.text()}`);
 
-    const json = await res.json();
-    const parts: any[] = json?.candidates?.[0]?.content?.parts ?? [];
-    const calls = parts.filter((p) => p.functionCall).map((p) => p.functionCall);
+    const msg = (await res.json())?.choices?.[0]?.message;
+    const toolCalls: any[] = msg?.tool_calls ?? [];
 
-    if (calls.length === 0) {
-      return parts.map((p) => p.text ?? '').join('').trim();
+    if (toolCalls.length === 0) {
+      return (msg?.content ?? '').trim();
     }
-    await applyToolCalls(contents, parts, calls, ctx);
+    await applyToolCalls(messages, msg, toolCalls, ctx);
   }
   return OUT_OF_ROUNDS;
 }
 
-/** Stream one model turn (SSE). Forwards cumulative text via onText as tokens
- * arrive, and returns the round's text + any function calls. */
+/** Stream one model turn (SSE, OpenAI delta format). Forwards cumulative text
+ * via onText as tokens arrive, and returns the round's text + any tool calls
+ * (accumulated from streamed fragments). */
 async function streamRound(
-  contents: any[],
+  messages: any[],
   ctx: AgentContext,
   onText: (full: string) => void,
-): Promise<{ text: string; calls: any[] }> {
-  const res = await expoFetch(`${GEMINI_STREAM_URL}?alt=sse&key=${GEMINI_KEY}`, {
+): Promise<{ text: string; toolCalls: any[] }> {
+  const res = await expoFetch(GROQ_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: AUTH_HEADERS,
     signal: ctx.signal,
-    body: requestBody(contents),
+    body: requestBody(messages, true),
   });
-  if (!res.ok || !res.body) throw new Error(`Gemini stream ${res.status}`);
+  if (!res.ok || !res.body) throw new Error(`Groq stream ${res.status}`);
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let text = '';
-  const calls: any[] = [];
+  const toolCalls: any[] = []; // indexed; fragments accumulate per index
 
   for (;;) {
     const { done, value } = await reader.read();
@@ -416,17 +430,26 @@ async function streamRound(
       } catch {
         continue; // partial JSON line — skip (rare with SSE framing)
       }
-      const parts: any[] = chunk?.candidates?.[0]?.content?.parts ?? [];
-      for (const p of parts) {
-        if (typeof p.text === 'string' && p.text) {
-          text += p.text;
-          onText(text);
+      const delta = chunk?.choices?.[0]?.delta;
+      if (!delta) continue;
+      if (typeof delta.content === 'string' && delta.content) {
+        text += delta.content;
+        onText(text);
+      }
+      if (Array.isArray(delta.tool_calls)) {
+        for (const d of delta.tool_calls) {
+          const i = d.index ?? 0;
+          if (!toolCalls[i]) {
+            toolCalls[i] = { id: '', type: 'function', function: { name: '', arguments: '' } };
+          }
+          if (d.id) toolCalls[i].id = d.id;
+          if (d.function?.name) toolCalls[i].function.name = d.function.name;
+          if (d.function?.arguments) toolCalls[i].function.arguments += d.function.arguments;
         }
-        if (p.functionCall) calls.push(p.functionCall);
       }
     }
   }
-  return { text, calls };
+  return { text, toolCalls: toolCalls.filter(Boolean) };
 }
 
 /** Streaming tool-calling loop. Tool rounds run silently; the final answer
@@ -437,11 +460,11 @@ async function runAgentStreaming(
   ctx: AgentContext,
   cbs: { onDelta: (full: string) => void; onAnswerStart: () => void },
 ): Promise<string> {
-  const contents: any[] = [{ role: 'user', parts: [{ text: question }] }];
+  const messages: any[] = [{ role: 'user', content: question }];
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     let started = false;
-    const { text, calls } = await streamRound(contents, ctx, (full) => {
+    const { text, toolCalls } = await streamRound(messages, ctx, (full) => {
       if (!started) {
         started = true;
         cbs.onAnswerStart();
@@ -449,12 +472,14 @@ async function runAgentStreaming(
       cbs.onDelta(full);
     });
 
-    if (calls.length === 0) return text.trim();
+    if (toolCalls.length === 0) return text.trim();
 
-    const modelParts: any[] = [];
-    if (text) modelParts.push({ text });
-    for (const c of calls) modelParts.push({ functionCall: c });
-    await applyToolCalls(contents, modelParts, calls, ctx);
+    await applyToolCalls(
+      messages,
+      { role: 'assistant', content: text || null, tool_calls: toolCalls },
+      toolCalls,
+      ctx,
+    );
   }
   return OUT_OF_ROUNDS;
 }
@@ -501,9 +526,9 @@ export function streamAnswer(
   }
 
   (async () => {
-    if (!GEMINI_KEY) {
+    if (!GROQ_KEY) {
       cbs.onText(
-        'I’m not connected yet — no Gemini API key is set. Add EXPO_PUBLIC_GEMINI_API_KEY to your .env and restart the app.',
+        'I’m not connected yet — no API key is set. Add EXPO_PUBLIC_GROQ_API_KEY to your .env and restart the app.',
       );
       cbs.onDone();
       return;

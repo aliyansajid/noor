@@ -27,13 +27,42 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-/** Finish the PKCE flow from the redirect URL by exchanging the code. */
+/** Read params from a URL's query string and its #fragment (OAuth may use either). */
+function paramsFromUrl(url: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const { queryParams } = Linking.parse(url);
+  for (const [k, v] of Object.entries(queryParams ?? {})) {
+    if (typeof v === 'string') out[k] = v;
+  }
+  const hash = url.indexOf('#');
+  if (hash >= 0) {
+    for (const pair of url.slice(hash + 1).split('&')) {
+      const [k, v] = pair.split('=');
+      if (k) out[decodeURIComponent(k)] = decodeURIComponent(v ?? '');
+    }
+  }
+  return out;
+}
+
+/** Establish a session from the OAuth redirect URL — PKCE (`code`) or, as a
+ * fallback, implicit (`access_token`/`refresh_token`). Throws on provider errors. */
 async function completeFromUrl(url: string) {
   if (!supabase) return;
-  const { queryParams } = Linking.parse(url);
-  const code = queryParams?.code;
-  if (typeof code === 'string') {
-    await supabase.auth.exchangeCodeForSession(code);
+  const p = paramsFromUrl(url);
+  if (p.error_description || p.error) {
+    throw new Error(p.error_description || p.error);
+  }
+  if (p.code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(p.code);
+    if (error) throw error;
+  } else if (p.access_token && p.refresh_token) {
+    const { error } = await supabase.auth.setSession({
+      access_token: p.access_token,
+      refresh_token: p.refresh_token,
+    });
+    if (error) throw error;
+  } else if (__DEV__) {
+    console.warn('[Noor auth] redirect had no code/token', Object.keys(p));
   }
 }
 
@@ -81,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!data?.url) throw new Error('Could not start Google sign-in.');
 
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+    if (__DEV__) console.log('[Noor auth] redirect result:', result.type);
     if (result.type === 'success' && result.url) {
       await completeFromUrl(result.url);
     }

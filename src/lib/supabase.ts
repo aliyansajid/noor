@@ -23,6 +23,8 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        // PKCE: the redirect returns `?code=` which we exchange for a session.
+        flowType: 'pkce',
       },
     })
   : null;

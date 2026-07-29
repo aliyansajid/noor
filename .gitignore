@@ -31,7 +31,6 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*
 !.env.example
 
 # typescript
@@ -47,3 +46,4 @@ screenshots/
 # Local API reference dumps
 api-1.json
 api-1.yaml
+config.bat
